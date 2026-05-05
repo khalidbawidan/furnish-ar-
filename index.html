@@ -261,44 +261,63 @@ body::after {
 }
 .cta-center { text-align: center; }
 
-/* ===== صفحة AR ===== */
+/* ===== صفحة AR =====
+   isolation + translateZ تجبر Safari على مركبة منفصلة: الفيديو خلفًا والـ WebGL فوقًا
+   بدون ذلك غالبًا يُرسم فيديو الكاميرا فوق الكانفاس الشفّاف فيُخفِي الأثاث (العداد ما زال يزيد).
+*/
 #page-ar {
   position: fixed; inset: 0; z-index: 200;
   background: #000; overflow: hidden;
+  isolation: isolate;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
-/* فيديو الكاميرا — لا يلتهم اللمس (مهمّ على Safari/iOS) */
+/* فيديو الكاميرا — في الخلف داخل الطبقة المعزولة */
 #camera-feed {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
-  object-fit: cover; z-index: 1;
+  object-fit: cover;
+  z-index: 0;
   background: #000;
   pointer-events: none;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
   -webkit-user-select: none;
   user-select: none;
 }
 
-/* مشهد A-Frame — فوق الفيديو مباشرة؛ طبقة واجهة منفصلة لا تغطي وسط الشفاف على Safari */
+/* كانفاس A-Frame — فوق الفيديو (ترتيب أساس لظهور الأثاث مع ألفا) */
 #ar-scene {
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
-  z-index: 4;
+  z-index: 30 !important;
   pointer-events: none !important;
+  transform: translate3d(0, 0, 1px);
+  -webkit-transform: translate3d(0, 0, 1px);
 }
+
 #ar-scene canvas {
   background: transparent !important;
   position: absolute !important;
   inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
   pointer-events: none !important;
+  opacity: 1 !important;
+  z-index: 31;
+  mix-blend-mode: normal;
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
 }
 
-/* طبقة النقر — فوق canvas مباشرةً، لا تستقبل سوى النقر على منطقة الكاميرا */
+/* طبقة النقر — فوق كانفاس الويب آر */
 #ar-tap-area {
   position: absolute;
   inset: 0;
-  z-index: 5;
+  z-index: 35;
   background: transparent;
   display: none;
   -webkit-tap-highlight-color: transparent;
@@ -316,8 +335,10 @@ body::after {
 }
 
 /* شاشة الإذن */
+/* فوق كل طبقات AR (كان z-index منخفضًا فيُضغَط تحت كانفاس WebGL وتظهر نافذة إذن فقط بينما المعاينة أسفله) */
 #ar-permission-screen {
-  position: absolute; inset: 0; z-index: 10;
+  position: absolute; inset: 0;
+  z-index: 220;
   display: flex; align-items: center; justify-content: center;
   background: rgba(10,12,22,0.85);
   backdrop-filter: blur(16px);
@@ -347,11 +368,11 @@ body::after {
 }
 .perm-back:hover { color: rgba(255,255,255,0.7); }
 
-/* طبقة واجهة AR — بدون flex بعرض الشاشة (كان يسبب اختفاء WebGL تحت الطبقة على iOS Safari) */
+/* واجهة AR داخل الصفحة (fixed على iOS كان يمزج طبقات غريبة مع كانفاس AR) */
 #ar-overlay {
-  position: fixed; inset: 0;
+  position: absolute; inset: 0;
   pointer-events: none;
-  z-index: 7;
+  z-index: 50;
   display: none;
 }
 #ar-overlay.visible { display: block; }
@@ -819,11 +840,11 @@ body::after {
   <a-scene
     id="ar-scene"
     embedded
-    renderer="alpha: true; antialias: true; logarithmicDepthBuffer: false"
+    renderer="alpha: true; antialias: false; logarithmicDepthBuffer: false; preserveDrawingBuffer: true"
     background="transparent: true"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
-    style="display:none">
+    style="display:none;width:100%;height:100%;box-sizing:border-box">
 
     <!-- إضاءة أقوى لإبراز المواد المعيارية فوق الخلفاء الحية -->
     <a-light type="ambient"     color="#ffffff" intensity="1.05"></a-light>
@@ -961,6 +982,41 @@ function forceStartAR() {
   document.getElementById('ar-overlay').classList.remove('visible');
 }
 
+/* ===== WebGL الشفّاف فوق الفيديو (إصلاحات خاصّة Safari / iOS) ===== */
+let arCompositorResizeBound = false;
+
+function fixARCompositorNow() {
+  const sceneEl = document.getElementById('ar-scene');
+  if (!sceneEl || !sceneEl.renderer) return;
+  const r = sceneEl.renderer;
+  r.setClearColor(0x000000, 0);
+  try {
+    if (THREE && THREE.SRGBColorSpace !== undefined && r.outputColorSpace !== undefined)
+      r.outputColorSpace = THREE.SRGBColorSpace;
+    else if (THREE && THREE.sRGBEncoding !== undefined && r.outputEncoding !== undefined)
+      r.outputEncoding = THREE.sRGBEncoding;
+  } catch (_) {}
+  try {
+    r.premultipliedAlpha = false;
+  } catch (_) {}
+  const cvs = sceneEl.canvas;
+  if (cvs) {
+    cvs.style.opacity = '1';
+    cvs.style.webkitTransform = 'translate3d(0,0,1px)';
+  }
+  if (typeof sceneEl.resize === 'function') sceneEl.resize();
+}
+
+function bindARCompositorResizeOnce() {
+  if (arCompositorResizeBound) return;
+  arCompositorResizeBound = true;
+  const ping = () => {
+    requestAnimationFrame(() => { if (arActive) fixARCompositorNow(); });
+  };
+  window.addEventListener('orientationchange', () => setTimeout(ping, 200));
+  window.addEventListener('resize', ping);
+}
+
 /* ===== منح الإذن والبدء ===== */
 async function grantPermissions() {
   const btn = document.getElementById('perm-btn');
@@ -1000,22 +1056,24 @@ async function grantPermissions() {
 
   /* 3. إظهار المشهد */
   document.getElementById('ar-permission-screen').style.display = 'none';
-  document.getElementById('ar-scene').style.display = '';
+  document.getElementById('ar-scene').style.display = 'block';
   const tapLayer = document.getElementById('ar-tap-area');
   if (tapLayer) tapLayer.style.display = 'block';
   document.getElementById('ar-overlay').classList.add('visible');
   document.getElementById('page-ar').classList.add('touch-host');
   arActive = true;
+  bindARCompositorResizeOnce();
 
-  /* 4. انتظر تهيئة A-Frame ثم ابدأ حلقة الاستهداف */
+  /* تهيئة A-Frame ثم تشغيل الاستهداف + إصلاح مركبة الألفا على الآيفون */
   const scene = document.getElementById('ar-scene');
-  if (scene.hasLoaded) {
+  const kick = () => {
+    fixARCompositorNow();
+    requestAnimationFrame(fixARCompositorNow);
     startReticleLoop();
-  } else {
-    scene.addEventListener('loaded', () => {
-      startReticleLoop();
-    }, { once: true });
-  }
+  };
+  /* يومض المُحمِّل قبل kick حتى لا يكون scene.renderer فارغًا */
+  if (scene.hasLoaded) requestAnimationFrame(() => kick());
+  else scene.addEventListener('loaded', () => requestAnimationFrame(kick), { once: true });
 }
 
 /* تجربة AR جاهزة لاستلام اللمس (بعد الموافقة وظهور اللوحة) */
@@ -1061,7 +1119,7 @@ function tickReticlePosition() {
   hDir.normalize();
 
   const downTilt = Math.max(0, -camDir.y);
-  const dist = Math.max(0.6, 2.5 - downTilt * 2.0);
+  const dist = Math.min(5, Math.max(1, 2.35 - downTilt * 1.9));
 
   const rx = camPos.x + hDir.x * dist;
   const rz = camPos.z + hDir.z * dist;
@@ -1208,9 +1266,9 @@ function selectFurniture(type, btn) {
   if (btn) btn.classList.add('selected');
 }
 
-/* لون المواد المعيارية في A-Frame (أوضح على الكاميرا من shader الـ flat وحده) */
-function matStd(hex) {
-  return `shader: standard; roughness: 0.78; metalness: 0.06; envMapIntensity: 0.55; color: ${hex}`;
+/* المواد الموحدة: Flat فوق الخلف الحي لا يعتمد على إضاءة WebGL المتغيرة وتظهر أفضل مع ألفا في Safari */
+function matPlacement(hex) {
+  return `shader: flat; color: ${hex}; fog: false; opacity: 1`;
 }
 
 /* تمضين ألوان معاينات الأزرار لتطابق اختيار اللون تماماً */
@@ -1282,13 +1340,12 @@ function buildFurniture(type, color) {
       cone.setAttribute('radius-top',    '0.05');
       cone.setAttribute('height',        '0.2');
       cone.setAttribute('position',      '0 0.72 0');
-      cone.setAttribute('material', matStd(color));
+      cone.setAttribute('material', matPlacement(color));
       wrap.appendChild(cone);
       const bulb = document.createElement('a-sphere');
       bulb.setAttribute('radius',   '0.05');
       bulb.setAttribute('position', '0 0.63 0');
-      bulb.setAttribute('color',    '#FFFFAA');
-      bulb.setAttribute('material', 'emissive: #FFFF88; emissiveIntensity: 0.9; shader: standard');
+      bulb.setAttribute('material', matPlacement('#FFF6C8'));
       wrap.appendChild(bulb);
       break;
     }
@@ -1314,7 +1371,7 @@ function buildFurniture(type, color) {
         h.setAttribute('height',   '0.15');
         h.setAttribute('rotation', '0 0 90');
         h.setAttribute('position', `0 ${dy} 0.29`);
-        h.setAttribute('material', matStd(knobCol));
+        h.setAttribute('material', matPlacement(knobCol));
         wrap.appendChild(h);
       });
       break;
@@ -1332,7 +1389,7 @@ function addBox(parent, dims, pos, color) {
   el.setAttribute('height', h);
   el.setAttribute('depth',  d);
   el.setAttribute('position', pos);
-  el.setAttribute('material', matStd(color));
+  el.setAttribute('material', matPlacement(color));
   parent.appendChild(el);
   return el;
 }
@@ -1344,7 +1401,7 @@ function addCyl(parent, dims, pos, color) {
   el.setAttribute('radius',   r);
   el.setAttribute('height',   h);
   el.setAttribute('position', pos);
-  el.setAttribute('material', matStd(color));
+  el.setAttribute('material', matPlacement(color));
   parent.appendChild(el);
   return el;
 }
@@ -1364,6 +1421,7 @@ function placeFurniture(position) {
     'position',
     `${position.x.toFixed(3)} ${liftY.toFixed(3)} ${position.z.toFixed(3)}`
   );
+  entity.setAttribute('scale', '1.35 1.35 1.35');
   container.appendChild(entity);
   placedItems.push(entity);
   updateCounter();
