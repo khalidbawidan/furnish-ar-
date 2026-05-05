@@ -287,6 +287,17 @@ body::after {
   inset: 0 !important;
 }
 
+/* طبقة النقر — فوق canvas مباشرةً، لا تستقبل سوى النقر على منطقة الكاميرا */
+#ar-tap-area {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: transparent;
+  display: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+
 /* شاشة الإذن */
 #ar-permission-screen {
   position: absolute; inset: 0; z-index: 10;
@@ -687,6 +698,9 @@ body::after {
 
   </a-scene>
 
+  <!-- طبقة لمس شفافة فوق مشهد الويب آر لضمان استقبال النقر (انظر CSS #ar-tap-area) -->
+  <div id="ar-tap-area" aria-hidden="true"></div>
+
   <!-- 4. واجهة التحكم -->
   <div id="ar-overlay">
 
@@ -748,6 +762,7 @@ let selectedColor     = '#F5F0E8';
 let placedItems       = [];
 let reticleRAFId      = null;
 let arActive          = false;
+let tapHandlersBound  = false;
 const MAX_ITEMS       = 20;
 
 /* ===== إدارة الصفحات ===== */
@@ -777,6 +792,8 @@ function forceStartAR() {
   showPage('ar');
   document.getElementById('ar-permission-screen').style.display = 'flex';
   document.getElementById('ar-scene').style.display = 'none';
+  const tapLayer = document.getElementById('ar-tap-area');
+  if (tapLayer) tapLayer.style.display = 'none';
   document.getElementById('ar-overlay').classList.remove('visible');
 }
 
@@ -820,6 +837,8 @@ async function grantPermissions() {
   /* 3. إظهار المشهد */
   document.getElementById('ar-permission-screen').style.display = 'none';
   document.getElementById('ar-scene').style.display = '';
+  const tapLayer = document.getElementById('ar-tap-area');
+  if (tapLayer) tapLayer.style.display = 'block';
   document.getElementById('ar-overlay').classList.add('visible');
   arActive = true;
 
@@ -869,10 +888,11 @@ function startReticleLoop() {
     const rz = camPos.z + hDir.z * dist;
 
     reticleEl.setAttribute('position', { x: rx, y: 0.01, z: rz });
-    reticleEl.setAttribute('visible', downTilt > 0.08);
+    /* دائرة الاستهداف تظهر بإمالة بسيطة؛ الوضع يعمل حتى قبل ظهورها */
+    reticleEl.setAttribute('visible', downTilt > 0.04);
 
     window._reticlePos     = { x: rx, y: 0, z: rz };
-    window._reticleVisible = downTilt > 0.08;
+    window._reticleVisible = downTilt > 0.04;
   }
 
   loop();
@@ -880,15 +900,20 @@ function startReticleLoop() {
 
 /* ===== معالجة النقر / اللمس لوضع الأثاث ===== */
 function setupTapHandler() {
-  const pageAR = document.getElementById('page-ar');
+  if (tapHandlersBound) return;
+  tapHandlersBound = true;
+  const tapLayer = document.getElementById('ar-tap-area');
+  const el = tapLayer || document.getElementById('page-ar');
+  if (!el) return;
+
   let touchStart = null;
 
   /* لمس (جوال) */
-  pageAR.addEventListener('touchstart', (e) => {
+  el.addEventListener('touchstart', (e) => {
     touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
   }, { passive: true });
 
-  pageAR.addEventListener('touchend', (e) => {
+  el.addEventListener('touchend', (e) => {
     if (!touchStart) return;
     const dx  = e.changedTouches[0].clientX - touchStart.x;
     const dy  = e.changedTouches[0].clientY - touchStart.y;
@@ -896,15 +921,14 @@ function setupTapHandler() {
     const dist = Math.sqrt(dx*dx + dy*dy);
 
     /* نقرة خفيفة: حركة قليلة ومدة قصيرة */
-    if (dist < 12 && dt < 350) {
-      const target = e.target;
-      if (!isUIElement(target)) handlePlaceTap();
+    if (dist < 12 && dt < 450) {
+      if (!isUIElement(e.target)) handlePlaceTap();
     }
     touchStart = null;
   }, { passive: true });
 
   /* نقر بالفأرة (سطح المكتب) */
-  pageAR.addEventListener('click', (e) => {
+  el.addEventListener('click', (e) => {
     if (!isUIElement(e.target)) handlePlaceTap();
   });
 }
@@ -914,7 +938,7 @@ function isUIElement(el) {
 }
 
 function handlePlaceTap() {
-  if (!window._reticleVisible || !window._reticlePos) return;
+  if (!arActive || !window._reticlePos) return;
   placeFurniture(window._reticlePos);
   /* إخفاء نص التوجيه بعد أول قطعة */
   const gt = document.getElementById('guidance-text');
@@ -938,6 +962,9 @@ function exitAR() {
   document.getElementById('ar-overlay').classList.remove('visible');
   document.getElementById('reticle').setAttribute('visible', false);
   document.getElementById('guidance-text').style.opacity = '1';
+  tapHandlersBound = false;
+  const tl = document.getElementById('ar-tap-area');
+  if (tl) tl.style.display = 'none';
 
   clearAll();
   showPage('welcome');
