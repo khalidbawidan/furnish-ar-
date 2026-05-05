@@ -273,7 +273,7 @@ body::after {
   -webkit-transform: translateZ(0);
 }
 
-/* فيديو الكاميرا — في الخلف داخل الطبقة المعزولة */
+/* الفيديو: مصدر بث لـ THREE.VideoTexture؛ يُرمَز أسفل الكانفاس (لا تعتمد رؤيته لتكديسه على WebGL) */
 #camera-feed {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
@@ -285,6 +285,22 @@ body::after {
   -webkit-transform: translateZ(0);
   -webkit-user-select: none;
   user-select: none;
+}
+#camera-feed.cam-gl-source {
+  opacity: 0;
+  visibility: visible;
+}
+
+/* بعض إصدارات iOS تهدّد إيقاف فك تشفير الفيديو إن كان مخفيًا كليًا؛ بقعة شبه شفافة تبقي المصدر نشطًا */
+#camera-feed.cam-gl-source-force {
+  width: 3px !important;
+  height: 3px !important;
+  right: env(safe-area-inset-right, 4px);
+  left: auto;
+  bottom: env(safe-area-inset-bottom, 6px);
+  top: auto;
+  inset: auto;
+  opacity: 0.04;
 }
 
 /* كانفاس A-Frame — فوق الفيديو (ترتيب أساس لظهور الأثاث مع ألفا) */
@@ -300,7 +316,7 @@ body::after {
 }
 
 #ar-scene canvas {
-  background: transparent !important;
+  background: #000;
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
@@ -836,12 +852,11 @@ body::after {
     </div>
   </div>
 
-  <!-- 3. مشهد A-Frame (شفاف فوق الكاميرا) -->
+  <!-- 3. مشهد A-Frame: الفيديو يُرمَى داخل WebGL كخلفية (أفضل حل لمشكل Safari حيث الأثاث يختفي تحت أو فوق الطبقة) -->
   <a-scene
     id="ar-scene"
     embedded
-    renderer="alpha: true; antialias: false; logarithmicDepthBuffer: false; preserveDrawingBuffer: true"
-    background="transparent: true"
+    renderer="alpha: false; antialias: false; logarithmicDepthBuffer: false; preserveDrawingBuffer: true"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
     style="display:none;width:100%;height:100%;box-sizing:border-box">
@@ -982,29 +997,115 @@ function forceStartAR() {
   document.getElementById('ar-overlay').classList.remove('visible');
 }
 
-/* ===== WebGL الشفّاف فوق الفيديو (إصلاحات خاصّة Safari / iOS) ===== */
+/* ===== كانفاس WebGL وحيد مع خلفية فيديو (أفضل نسب نجاح على Safari — تجنّب تكديس فيديو HTML + كانفاس شفاف) ===== */
 let arCompositorResizeBound = false;
+
+/** تقويم مستوى خلف الفيديو داخل PerspectiveCamera لتغطية كامل الإطار */
+let arVideoBackdropRefs = null;
+
+function fitARVideoBackdropPlane() {
+  const ref = arVideoBackdropRefs;
+  if (!ref || !ref.mesh || !ref.cam) return;
+  const mesh = ref.mesh;
+  const cam = ref.cam;
+  const d = Math.abs(mesh.position.z);
+  const tang = THREE.MathUtils.degToRad(cam.fov / 2);
+  const planeH = 2 * tang * d;
+  const planeW = planeH * Math.max(cam.aspect || 1, 0.1);
+  mesh.scale.set(planeW, planeH, 1);
+}
+
+function disposeARVideoBackdropPlane() {
+  const ref = arVideoBackdropRefs;
+  arVideoBackdropRefs = null;
+  const vid = document.getElementById('camera-feed');
+  if (vid) vid.classList.remove('cam-gl-source', 'cam-gl-source-force');
+
+  if (!ref) return;
+
+  try {
+    if (ref.mesh && ref.mesh.parent) ref.mesh.parent.remove(ref.mesh);
+    if (ref.geo) ref.geo.dispose();
+    if (ref.mat) {
+      if (ref.mat.map) ref.mat.map.dispose();
+      ref.mat.dispose();
+    }
+  } catch (_) {}
+}
+
+/**
+ * الفيديو كـ THREE.VideoTexture على مستوى ثابت خلف قطع الأثاث — كل الرسم في كانفاس واحد.
+ */
+function installARVideoBackdropPlane() {
+  if (typeof THREE === 'undefined') return;
+  if (arVideoBackdropRefs) return;
+
+  const video = document.getElementById('camera-feed');
+  const camEl = document.getElementById('ar-camera');
+
+  video.classList.add('cam-gl-source');
+  /* حيلة أجهزة متأثرة بتعليق المصدر تحت بعض إصدارات iOS */
+  if (/iPhone|iPad|iPod/i.test(navigator.userAgent || navigator.vendor || ''))
+    video.classList.add('cam-gl-source-force');
+
+  const cmp = camEl && camEl.components && camEl.components.camera;
+  if (!video || !cmp || !cmp.camera) return;
+
+  const threeCam = cmp.camera;
+
+  const tex = new THREE.VideoTexture(video);
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.generateMipmaps = false;
+  tex.flipY = true;
+  try {
+    if (THREE.SRGBColorSpace !== undefined) tex.colorSpace = THREE.SRGBColorSpace;
+    else if (THREE.sRGBEncoding !== undefined) tex.encoding = THREE.sRGBEncoding;
+  } catch (_) {}
+
+  const geo = new THREE.PlaneGeometry(1, 1);
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex,
+    side: THREE.FrontSide,
+    depthWrite: true,
+    depthTest: true,
+    fog: false
+  });
+  if ('toneMapped' in mat) mat.toneMapped = false;
+
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(0, 0, -5.65);
+  /* المستوي العادي افتراضيًا +Z؛ نلفّه بحيث وجه الطبقة نحو اتجاه النظر −Z المحلي */
+  mesh.rotation.y = Math.PI;
+  mesh.renderOrder = -999;
+
+  threeCam.add(mesh);
+
+  fitARVideoBackdropPlane();
+
+  arVideoBackdropRefs = { mesh, geo, mat, tex, cam: threeCam };
+}
 
 function fixARCompositorNow() {
   const sceneEl = document.getElementById('ar-scene');
   if (!sceneEl || !sceneEl.renderer) return;
   const r = sceneEl.renderer;
-  r.setClearColor(0x000000, 0);
+  /* مشهد مركَّب؛ الخلف الفعلي مستوى VideoTexture أمام هذا اللون */
+  r.setClearColor(0x040404, 1);
   try {
     if (THREE && THREE.SRGBColorSpace !== undefined && r.outputColorSpace !== undefined)
       r.outputColorSpace = THREE.SRGBColorSpace;
     else if (THREE && THREE.sRGBEncoding !== undefined && r.outputEncoding !== undefined)
       r.outputEncoding = THREE.sRGBEncoding;
   } catch (_) {}
-  try {
-    r.premultipliedAlpha = false;
-  } catch (_) {}
+
   const cvs = sceneEl.canvas;
   if (cvs) {
     cvs.style.opacity = '1';
     cvs.style.webkitTransform = 'translate3d(0,0,1px)';
   }
   if (typeof sceneEl.resize === 'function') sceneEl.resize();
+  fitARVideoBackdropPlane();
 }
 
 function bindARCompositorResizeOnce() {
@@ -1064,11 +1165,16 @@ async function grantPermissions() {
   arActive = true;
   bindARCompositorResizeOnce();
 
-  /* تهيئة A-Frame ثم تشغيل الاستهداف + إصلاح مركبة الألفا على الآيفون */
+  /* تهيئة A-Frame ثم تشغيل الاستهداف + خلفية WebGL بالفيديو (طريقة موثوقة على iPhone) */
   const scene = document.getElementById('ar-scene');
   const kick = () => {
     fixARCompositorNow();
-    requestAnimationFrame(fixARCompositorNow);
+    requestAnimationFrame(() => {
+      fixARCompositorNow();
+      installARVideoBackdropPlane();
+      fitARVideoBackdropPlane();
+      fixARCompositorNow();
+    });
     startReticleLoop();
   };
   /* يومض المُحمِّل قبل kick حتى لا يكون scene.renderer فارغًا */
@@ -1237,6 +1343,8 @@ function handlePlaceTap() {
 function exitAR() {
   arActive = false;
   if (reticleRAFId) { cancelAnimationFrame(reticleRAFId); reticleRAFId = null; }
+
+  disposeARVideoBackdropPlane();
 
   /* إيقاف الكاميرا */
   const video = document.getElementById('camera-feed');
