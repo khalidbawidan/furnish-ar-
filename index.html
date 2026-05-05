@@ -2,7 +2,9 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
 <title>FurnishAR — صمّم مكتبك قبل أن تشتري</title>
 <meta name="description" content="جرّب أثاثك قبل الشراء باستخدام تقنية الواقع المعزّز مباشرة من متصفحك">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -265,26 +267,31 @@ body::after {
   background: #000; overflow: hidden;
 }
 
-/* فيديو الكاميرا */
+/* فيديو الكاميرا — لا يلتهم اللمس (مهمّ على Safari/iOS) */
 #camera-feed {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   object-fit: cover; z-index: 1;
   background: #000;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-/* مشهد A-Frame */
+/* مشهد A-Frame — اللمس يُدار من طبقة #ar-tap-area والمعالج العام لتفادي تعارض الويب آر */
 #ar-scene {
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
   z-index: 2;
+  pointer-events: none !important;
 }
 #ar-scene canvas {
   background: transparent !important;
   position: absolute !important;
   inset: 0 !important;
+  pointer-events: none !important;
 }
 
 /* طبقة النقر — فوق canvas مباشرةً، لا تستقبل سوى النقر على منطقة الكاميرا */
@@ -295,7 +302,17 @@ body::after {
   background: transparent;
   display: none;
   -webkit-tap-highlight-color: transparent;
-  touch-action: none;
+  /* manipulation يسمح بالنقر ويقلّل سلوك التكبير المزعج؛ نجمع مع منع الإسحاب العرضي على صفحة AR */
+  touch-action: manipulation;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#page-ar.touch-host {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* شاشة الإذن */
@@ -643,7 +660,7 @@ body::after {
 <div id="page-ar" class="page">
 
   <!-- 1. فيديو الكاميرا -->
-  <video id="camera-feed" autoplay playsinline muted></video>
+  <video id="camera-feed" autoplay playsinline webkit-playsinline muted></video>
 
   <!-- 2. شاشة طلب الإذن -->
   <div id="ar-permission-screen">
@@ -710,7 +727,7 @@ body::after {
       <div class="counter-badge" id="counter-badge">القطع: 0</div>
     </div>
 
-    <div id="guidance-text">اضغط على الشاشة لوضع الأثاث</div>
+    <div id="guidance-text">بعد الاختيار: اضغط في وسط الشاشة (منطقة الكاميرا) لوضع الأثاث</div>
 
     <div class="ar-bottom-panel">
       <div class="furniture-selector">
@@ -760,10 +777,13 @@ body::after {
 let selectedFurniture = 'chair';
 let selectedColor     = '#F5F0E8';
 let placedItems       = [];
-let reticleRAFId      = null;
-let arActive          = false;
-let tapHandlersBound  = false;
-const MAX_ITEMS       = 20;
+let reticleRAFId        = null;
+let arActive            = false;
+let placementTouchStart = null;
+let globalARInputInstalled = false;
+let lastPlacementAt     = 0;
+const PLACE_DEBOUNCE_MS = 240;
+const MAX_ITEMS         = 20;
 
 /* ===== إدارة الصفحات ===== */
 function showPage(page) {
@@ -794,6 +814,7 @@ function forceStartAR() {
   document.getElementById('ar-scene').style.display = 'none';
   const tapLayer = document.getElementById('ar-tap-area');
   if (tapLayer) tapLayer.style.display = 'none';
+  document.getElementById('page-ar').classList.remove('touch-host');
   document.getElementById('ar-overlay').classList.remove('visible');
 }
 
@@ -840,107 +861,173 @@ async function grantPermissions() {
   const tapLayer = document.getElementById('ar-tap-area');
   if (tapLayer) tapLayer.style.display = 'block';
   document.getElementById('ar-overlay').classList.add('visible');
+  document.getElementById('page-ar').classList.add('touch-host');
   arActive = true;
 
   /* 4. انتظر تهيئة A-Frame ثم ابدأ حلقة الاستهداف */
   const scene = document.getElementById('ar-scene');
   if (scene.hasLoaded) {
     startReticleLoop();
-    setupTapHandler();
   } else {
     scene.addEventListener('loaded', () => {
       startReticleLoop();
-      setupTapHandler();
     }, { once: true });
   }
 }
 
-/* ===== حلقة تحديث دائرة الاستهداف ===== */
-function startReticleLoop() {
+/* تجربة AR جاهزة لاستلام اللمس (بعد الموافقة وظهور اللوحة) */
+function arSessionReadyForPlacement() {
+  if (!arActive) return false;
+  const pageAr = document.getElementById('page-ar');
+  if (!pageAr || !pageAr.classList.contains('active')) return false;
+  const overlay = document.getElementById('ar-overlay');
+  if (!overlay || !overlay.classList.contains('visible')) return false;
+  const perm = document.getElementById('ar-permission-screen');
+  if (perm && window.getComputedStyle(perm).display !== 'none') return false;
+  return true;
+}
+
+/* هل النقطة فوق منطقة وضع الأثاث (وسط الشاشة) وليست فوق اللوحة السفلية أو الشريط؟ */
+function isPointInPlacementZone(clientX, clientY) {
+  const topEl = document.elementFromPoint(clientX, clientY);
+  return !!topEl && !isUIElement(topEl);
+}
+
+/* حساب نقطة الوضع مرة واحدة (يُستدعى قبل كل نقرة مهمة وبين كل إطار) */
+function tickReticlePosition() {
   const reticleEl = document.getElementById('reticle');
   const scene     = document.getElementById('ar-scene');
+  const cameraEl  = document.getElementById('ar-camera');
 
+  if (!reticleEl || !scene || !cameraEl) {
+    window._reticlePos = window._reticlePos || { x: 0, y: 0, z: -2 };
+    return false;
+  }
+  if (!scene.object3D || !cameraEl.object3D) {
+    window._reticlePos = window._reticlePos || { x: 0, y: 0, z: -2 };
+    return false;
+  }
+
+  const camDir = new THREE.Vector3();
+  cameraEl.object3D.getWorldDirection(camDir);
+  const camPos = new THREE.Vector3();
+  cameraEl.object3D.getWorldPosition(camPos);
+
+  const hDir = new THREE.Vector3(camDir.x, 0, camDir.z);
+  if (hDir.length() < 0.001) hDir.set(0, 0, -1);
+  hDir.normalize();
+
+  const downTilt = Math.max(0, -camDir.y);
+  const dist = Math.max(0.6, 2.5 - downTilt * 2.0);
+
+  const rx = camPos.x + hDir.x * dist;
+  const rz = camPos.z + hDir.z * dist;
+
+  reticleEl.setAttribute('position', { x: rx, y: 0.01, z: rz });
+  reticleEl.setAttribute('visible', downTilt > 0.04);
+
+  window._reticlePos      = { x: rx, y: 0, z: rz };
+  window._reticleVisible  = downTilt > 0.04;
+
+  return true;
+}
+
+/* ===== حلقة تحديث دائرة الاستهداف ===== */
+function startReticleLoop() {
   function loop() {
     if (!arActive) return;
     reticleRAFId = requestAnimationFrame(loop);
-
-    if (!scene || !scene.object3D) return;
-    const cameraEl = document.getElementById('ar-camera');
-    if (!cameraEl || !cameraEl.object3D) return;
-
-    /* اتجاه الكاميرا في الفضاء العالمي */
-    const camDir = new THREE.Vector3();
-    cameraEl.object3D.getWorldDirection(camDir);
-
-    const camPos = new THREE.Vector3();
-    cameraEl.object3D.getWorldPosition(camPos);
-
-    /* المسقط الأفقي — إسقاط على مستوى XZ */
-    const hDir = new THREE.Vector3(camDir.x, 0, camDir.z);
-    if (hDir.length() < 0.001) hDir.set(0, 0, -1);
-    hDir.normalize();
-
-    /* المسافة: كلما أمالت الكاميرا للأسفل، كان الأثاث أقرب */
-    const downTilt = Math.max(0, -camDir.y); /* 0 = أفقي، 1 = رأسي للأسفل */
-    const dist = Math.max(0.6, 2.5 - downTilt * 2.0);
-
-    const rx = camPos.x + hDir.x * dist;
-    const rz = camPos.z + hDir.z * dist;
-
-    reticleEl.setAttribute('position', { x: rx, y: 0.01, z: rz });
-    /* دائرة الاستهداف تظهر بإمالة بسيطة؛ الوضع يعمل حتى قبل ظهورها */
-    reticleEl.setAttribute('visible', downTilt > 0.04);
-
-    window._reticlePos     = { x: rx, y: 0, z: rz };
-    window._reticleVisible = downTilt > 0.04;
+    tickReticlePosition();
   }
 
+  tickReticlePosition();
   loop();
 }
 
-/* ===== معالجة النقر / اللمس لوضع الأثاث ===== */
-function setupTapHandler() {
-  if (tapHandlersBound) return;
-  tapHandlersBound = true;
-  const tapLayer = document.getElementById('ar-tap-area');
-  const el = tapLayer || document.getElementById('page-ar');
-  if (!el) return;
-
-  let touchStart = null;
-
-  /* لمس (جوال) */
-  el.addEventListener('touchstart', (e) => {
-    touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
-  }, { passive: true });
-
-  el.addEventListener('touchend', (e) => {
-    if (!touchStart) return;
-    const dx  = e.changedTouches[0].clientX - touchStart.x;
-    const dy  = e.changedTouches[0].clientY - touchStart.y;
-    const dt  = Date.now() - touchStart.t;
-    const dist = Math.sqrt(dx*dx + dy*dy);
-
-    /* نقرة خفيفة: حركة قليلة ومدة قصيرة */
-    if (dist < 12 && dt < 450) {
-      if (!isUIElement(e.target)) handlePlaceTap();
-    }
-    touchStart = null;
-  }, { passive: true });
-
-  /* نقر بالفأرة (سطح المكتب) */
-  el.addEventListener('click', (e) => {
-    if (!isUIElement(e.target)) handlePlaceTap();
-  });
+/* عنصر الواجهة — لا توضع أثاثاً عند الضغط على أزرار القائمة */
+function isUIElement(el) {
+  if (!el || typeof el.closest !== 'function') return true;
+  return !!el.closest('.ar-bottom-panel, .ar-topbar, #ar-permission-screen, .error-screen, .perm-btn, .perm-back');
 }
 
-function isUIElement(el) {
-  return el.closest('.ar-bottom-panel, .ar-topbar, #ar-permission-screen');
+/* معالجة لمس عامة بالمرحلة الآخيرة (التقاط قبل الكانفاس/الأطفال) — موثوقة مع Safari على iPhone */
+function installGlobalARPlacementInput() {
+  if (globalARInputInstalled) return;
+  globalARInputInstalled = true;
+
+  window.addEventListener(
+    'touchstart',
+    (e) => {
+      if (!arSessionReadyForPlacement()) return;
+      if (e.touches.length !== 1) return;
+      const ti = e.touches[0];
+      placementTouchStart = { id: ti.identifier, x: ti.clientX, y: ti.clientY, t: Date.now() };
+    },
+    { capture: true, passive: true }
+  );
+
+  window.addEventListener('touchcancel', () => { placementTouchStart = null; }, { capture: true, passive: true });
+
+  window.addEventListener(
+    'touchend',
+    (e) => {
+      if (!placementTouchStart || !arSessionReadyForPlacement()) {
+        placementTouchStart = null;
+        return;
+      }
+      let t = null;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === placementTouchStart.id) {
+          t = e.changedTouches[i];
+          break;
+        }
+      }
+      if (!t) {
+        placementTouchStart = null;
+        return;
+      }
+
+      const dx = t.clientX - placementTouchStart.x;
+      const dy = t.clientY - placementTouchStart.y;
+      const dt = Date.now() - placementTouchStart.t;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      placementTouchStart = null;
+
+      if (dist > 48 || dt > 700) return;
+
+      if (!isPointInPlacementZone(t.clientX, t.clientY)) return;
+
+      tickReticlePosition();
+      handlePlaceTap();
+      if (e.cancelable) e.preventDefault();
+    },
+    { capture: true, passive: false }
+  );
+
+  /* سطح المكتب / أجهزة مع pointer */
+  window.addEventListener(
+    'pointerup',
+    (e) => {
+      if (e.pointerType === 'touch') return;
+      if (e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+      if (!arSessionReadyForPlacement()) return;
+      if (e.button !== 0) return;
+      if (!isPointInPlacementZone(e.clientX, e.clientY)) return;
+      tickReticlePosition();
+      handlePlaceTap();
+    },
+    { capture: true, passive: true }
+  );
 }
 
 function handlePlaceTap() {
-  if (!arActive || !window._reticlePos) return;
+  if (!arActive) return;
+  const now = Date.now();
+  if (now - lastPlacementAt < PLACE_DEBOUNCE_MS) return;
+  tickReticlePosition();
+  if (!window._reticlePos) return;
+  lastPlacementAt = now;
   placeFurniture(window._reticlePos);
-  /* إخفاء نص التوجيه بعد أول قطعة */
   const gt = document.getElementById('guidance-text');
   if (gt) gt.style.opacity = '0';
 }
@@ -962,7 +1049,8 @@ function exitAR() {
   document.getElementById('ar-overlay').classList.remove('visible');
   document.getElementById('reticle').setAttribute('visible', false);
   document.getElementById('guidance-text').style.opacity = '1';
-  tapHandlersBound = false;
+  placementTouchStart = null;
+  document.getElementById('page-ar').classList.remove('touch-host');
   const tl = document.getElementById('ar-tap-area');
   if (tl) tl.style.display = 'none';
 
@@ -1171,6 +1259,7 @@ function showArabicAlert(msg) {
 
 /* ===== تهيئة عند التحميل ===== */
 window.addEventListener('DOMContentLoaded', () => {
+  installGlobalARPlacementInput();
   showPage('welcome');
 });
 
