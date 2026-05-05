@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FurnishAR — صمّم مكتبك قبل أن تشتري</title>
+<meta name="description" content="جرّب أثاثك قبل الشراء باستخدام تقنية الواقع المعزّز مباشرة من متصفحك">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+<script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+<style>
+/* ===== متغيرات الألوان ===== */
+:root {
+  --cream: #F5F0E8;
+  --dark: #1A1A2E;
+  --accent: #E8A838;
+  --accent2: #C85A2A;
+  --wood: #8B5E3C;
+  --muted: #7A7A8A;
+  --white: #ffffff;
+  --card-shadow: 0 8px 32px rgba(26,26,46,0.10);
+}
+
+/* ===== إعادة الضبط والأساسيات ===== */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Tajawal', sans-serif;
+  background: var(--cream);
+  color: var(--dark);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ===== الخلفية الهندسية (CSS فقط) ===== */
+body::before {
+  content: '';
+  position: fixed;
+  top: -200px;
+  left: -200px;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(232,168,56,0.07) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+body::after {
+  content: '';
+  position: fixed;
+  bottom: -150px;
+  right: -150px;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(200,90,42,0.06) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ===== إدارة الصفحات ===== */
+.page { display: none; }
+.page.active { display: block; }
+
+/* ===== شريط التنقل ===== */
+.navbar {
+  position: fixed;
+  top: 0; right: 0; left: 0;
+  z-index: 100;
+  padding: 18px 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(245,240,232,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(26,26,46,0.06);
+}
+.nav-logo {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: var(--dark);
+  letter-spacing: -0.5px;
+}
+.nav-logo span { color: var(--accent); }
+.nav-link {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.nav-link:hover { color: var(--dark); }
+
+/* ===== صفحة الترحيب ===== */
+#page-welcome {
+  min-height: 100vh;
+  padding-top: 80px;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+  min-height: calc(100vh - 80px);
+  padding: 40px 48px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* === عمود النص === */
+.hero-text { animation: fadeInUp 0.8s ease both; }
+
+.eyebrow-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(200,90,42,0.08);
+  border: 1px solid rgba(200,90,42,0.2);
+  border-right: 3px solid var(--accent2);
+  color: var(--accent2);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 6px 14px 6px 12px;
+  border-radius: 20px;
+  margin-bottom: 28px;
+}
+.eyebrow-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent2);
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+.hero-h1 {
+  font-size: clamp(2.6rem, 5vw, 4rem);
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -1px;
+  color: var(--dark);
+  margin-bottom: 24px;
+}
+.hero-h1 .highlight-word {
+  position: relative;
+  color: var(--dark);
+  display: inline-block;
+}
+.hero-h1 .highlight-word::before {
+  content: '';
+  position: absolute;
+  bottom: 4px; right: -4px; left: -4px;
+  height: 38%;
+  background: rgba(232,168,56,0.35);
+  border-radius: 4px;
+  z-index: -1;
+}
+.hero-h1 .highlight-word::after {
+  content: '';
+  position: absolute;
+  bottom: -2px; right: -4px; left: -4px;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.hero-subtitle {
+  font-size: 1.05rem;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.85;
+  margin-bottom: 40px;
+  max-width: 440px;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--dark);
+  color: var(--white);
+  font-family: 'Tajawal', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 15px 32px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.25s, box-shadow 0.25s, transform 0.15s;
+  box-shadow: 0 4px 16px rgba(26,26,46,0.18);
+}
+.btn-primary:hover {
+  background: var(--accent);
+  color: var(--dark);
+  box-shadow: 0 8px 28px rgba(232,168,56,0.35);
+  transform: translateY(-2px);
+}
+.btn-arrow {
+  font-size: 1.1rem;
+  transition: transform 0.2s;
+}
+.btn-primary:hover .btn-arrow { transform: translateX(-4px); }
+
+.ghost-link {
+  display: block;
+  margin-top: 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.ghost-link:hover { color: var(--accent2); text-decoration: underline; }
+
+/* === عمود المرئيات === */
+.hero-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  animation: fadeInUp 0.8s 0.2s ease both;
+}
+
+/* موبايل وهمي */
+.phone-mockup {
+  width: 220px;
+  height: 420px;
+  background: var(--dark);
+  border-radius: 32px;
+  border: 3px solid rgba(255,255,255,0.12);
+  position: relative;
+  box-shadow:
+    0 30px 80px rgba(26,26,46,0.35),
+    0 0 0 1px rgba(255,255,255,0.04) inset;
+  animation: phonePulse 4s ease-in-out infinite;
+  z-index: 2;
+  overflow: hidden;
+}
+.phone-notch {
+  position: absolute;
+  top: 12px; left: 50%; transform: translateX(-50%);
+  width: 60px; height: 8px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+  z-index: 3;
+}
+.phone-screen {
+  position: absolute;
+  inset: 16px;
+  border-radius: 20px;
+  background: #0a0f1e;
+  overflow: hidden;
+}
+
+/* مشهد AR داخل الموبايل */
+.ar-preview {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: linear-gradient(180deg, #0a1628 0%, #0d1f3a 60%, #111830 100%);
+}
+/* شبكة الأرض */
+.ar-grid {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 55%;
+  background-image:
+    linear-gradient(rgba(232,168,56,0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232,168,56,0.15) 1px, transparent 1px);
+  background-size: 20px 20px;
+  transform: perspective(200px) rotateX(55deg);
+  transform-origin: bottom center;
+}
+/* دائرة الاستهداف */
+.ar-reticle {
+  position: absolute;
+  bottom: 28%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 2.5px solid var(--accent);
+  animation: reticlePulse 1.8s ease-in-out infinite;
+}
+.ar-reticle::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  border: 1px solid rgba(232,168,56,0.4);
+}
+/* صندوق أثاث وهمي */
+.ar-box {
+  position: absolute;
+  bottom: 36%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px; height: 22px;
+  background: rgba(139,94,60,0.85);
+  border: 1px solid rgba(232,168,56,0.5);
+  border-radius: 3px;
+  animation: boxFloat 2.5s ease-in-out infinite;
+}
+.ar-box::before {
+  content: '';
+  position: absolute;
+  top: -8px; right: -2px;
+  width: 30px; height: 8px;
+  background: rgba(139,94,60,0.65);
+  border-radius: 2px 2px 0 0;
+  transform: skewX(-15deg);
+}
+/* نقاط نجمية */
+.ar-star {
+  position: absolute;
+  border-radius: 50%;
+  background: white;
+  animation: starTwinkle 2s ease-in-out infinite;
+}
+
+/* بطاقات الأثاث الطائرة */
+.furniture-card {
+  position: absolute;
+  background: var(--white);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--card-shadow);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--dark);
+  white-space: nowrap;
+  z-index: 3;
+  border: 1px solid rgba(26,26,46,0.06);
+}
+.furniture-card .card-emoji { font-size: 1.1rem; }
+.card-1 { top: 10%; right: -30px; animation: floatCard 3s 0s ease-in-out infinite; }
+.card-2 { top: 38%; left: -40px; animation: floatCard 3s 0.5s ease-in-out infinite; }
+.card-3 { bottom: 28%; right: -35px; animation: floatCard 3s 1s ease-in-out infinite; }
+.card-4 { bottom: 8%; left: -30px; animation: floatCard 3s 1.5s ease-in-out infinite; }
+
+/* شريط الإحصائيات */
+.stats-bar {
+  text-align: center;
+  padding: 20px 48px;
+  border-top: 1px solid rgba(26,26,46,0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+.stat-item {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 0 24px;
+}
+.stat-item strong { color: var(--dark); font-weight: 700; }
+.stat-dot {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: rgba(26,26,46,0.2);
+}
+
+/* ===== صفحة كيف يعمل ===== */
+#page-howto {
+  background: var(--cream);
+  min-height: 100vh;
+  padding-top: 80px;
+}
+
+.howto-inner {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 60px 48px;
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 60px;
+}
+.section-title {
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  font-weight: 900;
+  color: var(--dark);
+  letter-spacing: -0.5px;
+  margin-bottom: 14px;
+}
+.section-line {
+  width: 48px; height: 4px;
+  background: var(--accent);
+  border-radius: 2px;
+  margin: 0 auto;
+}
+
+/* بطاقات الخطوات */
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+  margin-bottom: 48px;
+}
+.step-card {
+  background: var(--white);
+  border-radius: 20px;
+  padding: 36px 28px;
+  position: relative;
+  border: 1px solid rgba(26,26,46,0.06);
+  box-shadow: var(--card-shadow);
+  transition: transform 0.2s, box-shadow 0.2s;
+  overflow: hidden;
+}
+.step-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 48px rgba(26,26,46,0.13);
+}
+.step-number {
+  font-size: 5rem;
+  font-weight: 900;
+  line-height: 1;
+  color: rgba(232,168,56,0.12);
+  position: absolute;
+  top: 12px;
+  left: 20px;
+  font-feature-settings: 'tnum';
+  letter-spacing: -2px;
+}
+.step-icon { font-size: 2.2rem; margin-bottom: 16px; display: block; }
+.step-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--dark);
+  margin-bottom: 10px;
+}
+.step-desc {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+/* صندوق المتطلبات */
+.requirements-box {
+  background: var(--dark);
+  border-radius: 20px;
+  padding: 36px 40px;
+  margin-bottom: 44px;
+  display: grid;
+  grid-template-columns: auto 1fr 1fr 1fr;
+  gap: 20px;
+  align-items: center;
+}
+.req-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--white);
+  white-space: nowrap;
+  padding-left: 24px;
+  border-left: 2px solid var(--accent);
+}
+.req-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.8);
+}
+.req-check {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: rgba(232,168,56,0.15);
+  border: 1.5px solid var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.cta-center { text-align: center; }
+
+/* ===== صفحة AR ===== */
+#page-ar {
+  width: 100%;
+  height: 100vh;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #000;
+}
+
+/* مشهد A-Frame */
+a-scene {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* طبقة التحكم AR */
+#ar-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* شريط علوي */
+.ar-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.65), transparent);
+  pointer-events: auto;
+}
+.ar-brand {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: var(--white);
+}
+.ar-brand span { color: var(--accent); }
+.ar-back-btn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: var(--white);
+  font-family: 'Tajawal', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  pointer-events: auto;
+  backdrop-filter: blur(8px);
+  transition: background 0.2s;
+}
+.ar-back-btn:hover { background: rgba(255,255,255,0.25); }
+.counter-badge {
+  background: rgba(232,168,56,0.9);
+  color: var(--dark);
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 5px 12px;
+  border-radius: 20px;
+  pointer-events: none;
+}
+
+/* نص التوجيه */
+#guidance-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(8px);
+  color: var(--white);
+  font-family: 'Tajawal', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 10px 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.15);
+  animation: guidancePulse 2s ease-in-out infinite;
+  pointer-events: none;
+  text-align: center;
+}
+
+/* لوحة التحكم السفلية */
+.ar-bottom-panel {
+  background: rgba(10,12,22,0.82);
+  backdrop-filter: blur(20px);
+  border-radius: 28px 28px 0 0;
+  padding: 20px 20px 32px;
+  pointer-events: auto;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+/* صف اختيار الأثاث */
+.furniture-selector {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 16px;
+  scrollbar-width: none;
+}
+.furniture-selector::-webkit-scrollbar { display: none; }
+
+.furniture-btn {
+  flex-shrink: 0;
+  width: 72px;
+  background: rgba(255,255,255,0.08);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  padding: 10px 4px 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+  font-family: 'Tajawal', sans-serif;
+  color: var(--white);
+}
+.furniture-btn:hover { background: rgba(255,255,255,0.14); transform: scale(1.05); }
+.furniture-btn.selected {
+  border-color: var(--accent);
+  background: rgba(232,168,56,0.15);
+  box-shadow: 0 0 16px rgba(232,168,56,0.25);
+}
+.furniture-btn .fb-emoji { font-size: 1.6rem; display: block; margin-bottom: 5px; }
+.furniture-btn .fb-name { font-size: 0.68rem; font-weight: 600; color: rgba(255,255,255,0.85); line-height: 1.2; }
+
+/* منتقي الألوان */
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.color-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.5);
+  white-space: nowrap;
+  margin-left: 4px;
+}
+.color-swatch {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.15s, border-color 0.2s;
+  flex-shrink: 0;
+}
+.color-swatch:hover { transform: scale(1.15); }
+.color-swatch.selected {
+  border-color: rgba(255,255,255,0.9);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
+}
+
+/* أزرار الإجراءات */
+.action-row {
+  display: flex;
+  gap: 10px;
+}
+.action-btn {
+  flex: 1;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.8);
+  font-family: 'Tajawal', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.action-btn:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.2);
+}
+.action-btn.danger:hover { background: rgba(200,90,42,0.2); border-color: var(--accent2); color: #ff9a7a; }
+
+/* ===== رسائل الخطأ ===== */
+.error-screen {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: var(--cream);
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  padding: 40px;
+}
+.error-screen.show { display: flex; }
+.error-card {
+  background: var(--white);
+  border-radius: 24px;
+  padding: 48px 40px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: var(--card-shadow);
+  border: 1px solid rgba(26,26,46,0.07);
+}
+.error-icon { font-size: 3.5rem; margin-bottom: 20px; display: block; }
+.error-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--dark);
+  margin-bottom: 12px;
+}
+.error-msg {
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.8;
+  margin-bottom: 28px;
+}
+.qr-placeholder {
+  width: 140px; height: 140px;
+  border-radius: 12px;
+  background: repeating-linear-gradient(
+    45deg, var(--dark) 0, var(--dark) 4px, transparent 4px, transparent 12px
+  );
+  margin: 0 auto 16px;
+  opacity: 0.15;
+  border: 2px solid rgba(26,26,46,0.15);
+}
+.error-sub { font-size: 0.8rem; color: var(--muted); }
+
+/* ===== كيفاشن (رسوم متحركة) ===== */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes phonePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.025); }
+}
+@keyframes floatCard {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes reticlePulse {
+  0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
+  50% { opacity: 0.5; transform: translateX(-50%) scale(1.3); }
+}
+@keyframes boxFloat {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-6px); }
+}
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+@keyframes guidancePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ===== انتقالات الصفحات ===== */
+.page-transition-enter {
+  animation: pageEnter 0.5s ease both;
+}
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== استجابة الجوال ===== */
+@media (max-width: 768px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+    padding: 28px 24px;
+    gap: 48px;
+    min-height: auto;
+  }
+  .hero-visual { order: -1; }
+  .phone-mockup { width: 180px; height: 340px; }
+  .furniture-card { display: none; }
+  .requirements-box {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .req-title { border-left: none; border-bottom: 2px solid var(--accent); padding-left: 0; padding-bottom: 10px; }
+  .steps-grid { grid-template-columns: 1fr; }
+  .navbar { padding: 14px 24px; }
+  .howto-inner { padding: 40px 24px; }
+  .stats-bar { flex-wrap: wrap; gap: 12px; }
+}
+@media (max-width: 400px) {
+  .hero-h1 { font-size: 2.2rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== شاشة الخطأ (متصفح غير مدعوم) ===== -->
+<div class="error-screen" id="error-webxr">
+  <div class="error-card">
+    <span class="error-icon">🌐</span>
+    <div class="error-title">المتصفح لا يدعم WebXR</div>
+    <div class="error-msg">متصفحك لا يدعم WebXR.<br>استخدم Chrome على Android للحصول على تجربة AR كاملة.</div>
+    <button class="btn-primary" onclick="document.getElementById('error-webxr').classList.remove('show')" style="margin:0 auto">
+      حسناً، تفهمت <span class="btn-arrow">←</span>
+    </button>
+  </div>
+</div>
+
+<!-- ===== شاشة الخطأ (كاميرا مرفوضة) ===== -->
+<div class="error-screen" id="error-camera">
+  <div class="error-card">
+    <span class="error-icon">📷</span>
+    <div class="error-title">تعذّر الوصول للكاميرا</div>
+    <div class="error-msg">يرجى السماح بالوصول إلى الكاميرا لتشغيل تجربة الواقع المعزّز.</div>
+    <button class="btn-primary" onclick="document.getElementById('error-camera').classList.remove('show'); showPage('welcome')" style="margin:0 auto">
+      العودة <span class="btn-arrow">←</span>
+    </button>
+  </div>
+</div>
+
+<!-- ===== شاشة الخطأ (سطح المكتب) ===== -->
+<div class="error-screen" id="error-desktop">
+  <div class="error-card">
+    <span class="error-icon">💻</span>
+    <div class="error-title">استخدم هاتفك المحمول</div>
+    <div class="error-msg">
+      هذه التجربة مصممة للهاتف المحمول.<br>
+      افتح الرابط من هاتفك للحصول على تجربة AR كاملة.
+    </div>
+    <div class="qr-placeholder"></div>
+    <div class="error-sub">امسح رمز QR بكاميرا هاتفك</div>
+  </div>
+</div>
+
+<!-- ===== شريط التنقل ===== -->
+<nav class="navbar" id="navbar">
+  <div class="nav-logo">Furnish<span>AR</span></div>
+  <a class="nav-link" onclick="showPage('howto')">كيف يعمل؟</a>
+</nav>
+
+<!-- ============================= -->
+<!-- صفحة الترحيب                  -->
+<!-- ============================= -->
+<div id="page-welcome" class="page active">
+  <div class="hero-grid">
+
+    <!-- عمود النص -->
+    <div class="hero-text">
+      <div class="eyebrow-label">
+        <span class="eyebrow-dot"></span>
+        واقع معزّز • ويب
+      </div>
+
+      <h1 class="hero-h1">
+        جرّب أثاثك<br>
+        <span class="highlight-word">قبل الشراء</span>
+      </h1>
+
+      <p class="hero-subtitle">
+        اختر قطعة الأثاث المكتبي التي تريدها،<br>
+        ثم ضعها في غرفتك الحقيقية عبر كاميرا هاتفك.<br>
+        تجربة واقع معزّز مباشرة من المتصفح — بدون تحميل أي تطبيق.
+      </p>
+
+      <button class="btn-primary" onclick="startARExperience()">
+        ابدأ التجربة <span class="btn-arrow">←</span>
+      </button>
+      <a class="ghost-link" onclick="showPage('howto')">كيف يعمل؟</a>
+    </div>
+
+    <!-- عمود المرئيات -->
+    <div class="hero-visual">
+      <!-- بطاقات الأثاث الطائرة -->
+      <div class="furniture-card card-1"><span class="card-emoji">🪑</span> كرسي مكتب</div>
+      <div class="furniture-card card-2"><span class="card-emoji">🖥️</span> مكتب دراسة</div>
+      <div class="furniture-card card-3"><span class="card-emoji">📚</span> رف كتب</div>
+      <div class="furniture-card card-4"><span class="card-emoji">💡</span> مصباح</div>
+
+      <!-- موبايل وهمي -->
+      <div class="phone-mockup">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="ar-preview">
+            <div class="ar-grid"></div>
+            <!-- نجوم صغيرة -->
+            <div class="ar-star" style="width:2px;height:2px;top:15%;right:25%;animation-delay:0s"></div>
+            <div class="ar-star" style="width:2px;height:2px;top:22%;right:60%;animation-delay:0.6s"></div>
+            <div class="ar-star" style="width:3px;height:3px;top:10%;right:45%;animation-delay:1.2s"></div>
+            <div class="ar-star" style="width:2px;height:2px;top:30%;right:15%;animation-delay:0.3s"></div>
+            <div class="ar-box"></div>
+            <div class="ar-reticle"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- شريط الإحصائيات -->
+  <div class="stats-bar">
+    <div class="stat-item"><strong>٦ قطع أثاث</strong></div>
+    <div class="stat-dot"></div>
+    <div class="stat-item"><strong>واقع معزّز حقيقي</strong></div>
+    <div class="stat-dot"></div>
+    <div class="stat-item"><strong>يعمل من المتصفح</strong></div>
+  </div>
+</div>
+
+<!-- ============================= -->
+<!-- صفحة كيف يعمل                 -->
+<!-- ============================= -->
+<div id="page-howto" class="page" id="how-it-works">
+  <div class="howto-inner">
+
+    <div class="section-header">
+      <div class="section-title">كيف تعمل التجربة؟</div>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="steps-grid">
+      <!-- خطوة 1 -->
+      <div class="step-card">
+        <div class="step-number">01</div>
+        <span class="step-icon">🎯</span>
+        <div class="step-title">افتح التطبيق</div>
+        <div class="step-desc">افتح الرابط من متصفح Chrome على هاتفك واسمح بالوصول للكاميرا عند الطلب.</div>
+      </div>
+      <!-- خطوة 2 -->
+      <div class="step-card">
+        <div class="step-number">02</div>
+        <span class="step-icon">📱</span>
+        <div class="step-title">وجّه الكاميرا للأرض</div>
+        <div class="step-desc">حرّك الكاميرا ببطء نحو الأرض حتى يظهر دائرة الاستهداف الذهبية على الشاشة.</div>
+      </div>
+      <!-- خطوة 3 -->
+      <div class="step-card">
+        <div class="step-number">03</div>
+        <span class="step-icon">🛋️</span>
+        <div class="step-title">اختر وضع الأثاث</div>
+        <div class="step-desc">اختر القطعة من القائمة واضغط على الشاشة لوضعها في مكانها في غرفتك الحقيقية.</div>
+      </div>
+    </div>
+
+    <!-- صندوق المتطلبات -->
+    <div class="requirements-box">
+      <div class="req-title">متطلبات<br>التشغيل</div>
+      <div class="req-item">
+        <div class="req-check">✓</div>
+        متصفح Chrome على Android
+      </div>
+      <div class="req-item">
+        <div class="req-check">✓</div>
+        اتصال HTTPS (GitHub Pages)
+      </div>
+      <div class="req-item">
+        <div class="req-check">✓</div>
+        السماح بالوصول للكاميرا
+      </div>
+    </div>
+
+    <div class="cta-center">
+      <button class="btn-primary" onclick="startARExperience()" style="font-size:1.05rem;padding:16px 40px;">
+        جاهز؟ ابدأ التجربة الآن <span class="btn-arrow">←</span>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================= -->
+<!-- صفحة AR الفعلية               -->
+<!-- ============================= -->
+<div id="page-ar" class="page">
+
+  <!-- مشهد A-Frame -->
+  <a-scene
+    id="ar-scene"
+    embedded
+    webxr="requiredFeatures: hit-test; optionalFeatures: dom-overlay; overlayElement: #ar-overlay"
+    renderer="logarithmicDepthBuffer: true; colorManagement: true; physicallyCorrectLights: true"
+    vr-mode-ui="enabled: false">
+
+    <!-- دائرة الاستهداف -->
+    <a-ring
+      id="reticle"
+      radius-inner="0.06"
+      radius-outer="0.10"
+      rotation="-90 0 0"
+      material="color: #E8A838; shader: flat; opacity: 0.9"
+      visible="false">
+    </a-ring>
+
+    <!-- حاوية الأثاث -->
+    <a-entity id="furniture-container"></a-entity>
+
+    <a-entity camera></a-entity>
+
+    <!-- إضاءة -->
+    <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
+    <a-light type="directional" color="#fff8f0" intensity="1.2" position="1 3 2"></a-light>
+
+  </a-scene>
+
+  <!-- طبقة التحكم -->
+  <div id="ar-overlay">
+
+    <!-- شريط علوي -->
+    <div class="ar-topbar">
+      <button class="ar-back-btn" onclick="exitAR()">← خروج</button>
+      <div class="ar-brand">Furnish<span>AR</span></div>
+      <div class="counter-badge" id="counter-badge">القطع: 0</div>
+    </div>
+
+    <!-- نص التوجيه -->
+    <div id="guidance-text">وجّه الكاميرا نحو الأرض</div>
+
+    <!-- لوحة التحكم السفلية -->
+    <div class="ar-bottom-panel">
+
+      <!-- اختيار الأثاث -->
+      <div class="furniture-selector" id="furniture-selector">
+        <button class="furniture-btn selected" data-type="chair" onclick="selectFurniture('chair', this)">
+          <span class="fb-emoji">🪑</span>
+          <span class="fb-name">كرسي مكتب</span>
+        </button>
+        <button class="furniture-btn" data-type="desk" onclick="selectFurniture('desk', this)">
+          <span class="fb-emoji">🖥️</span>
+          <span class="fb-name">مكتب دراسة</span>
+        </button>
+        <button class="furniture-btn" data-type="bookshelf" onclick="selectFurniture('bookshelf', this)">
+          <span class="fb-emoji">📚</span>
+          <span class="fb-name">رف كتب</span>
+        </button>
+        <button class="furniture-btn" data-type="lamp" onclick="selectFurniture('lamp', this)">
+          <span class="fb-emoji">💡</span>
+          <span class="fb-name">مصباح</span>
+        </button>
+        <button class="furniture-btn" data-type="printer" onclick="selectFurniture('printer', this)">
+          <span class="fb-emoji">🖨️</span>
+          <span class="fb-name">طابعة</span>
+        </button>
+        <button class="furniture-btn" data-type="cabinet" onclick="selectFurniture('cabinet', this)">
+          <span class="fb-emoji">🗄️</span>
+          <span class="fb-name">خزانة ملفات</span>
+        </button>
+      </div>
+
+      <!-- منتقي الألوان -->
+      <div class="color-row">
+        <span class="color-label">اللون:</span>
+        <div class="color-swatch selected" style="background:#F5F0E8;border:1px solid #ccc" data-color="#F5F0E8" onclick="selectColor('#F5F0E8', this)" title="كريمي"></div>
+        <div class="color-swatch" style="background:#1A1A2E" data-color="#1A1A2E" onclick="selectColor('#1A1A2E', this)" title="أسود"></div>
+        <div class="color-swatch" style="background:#8B5E3C" data-color="#8B5E3C" onclick="selectColor('#8B5E3C', this)" title="خشبي"></div>
+        <div class="color-swatch" style="background:#4A6FA5" data-color="#4A6FA5" onclick="selectColor('#4A6FA5', this)" title="أزرق"></div>
+        <div class="color-swatch" style="background:#6B7280" data-color="#6B7280" onclick="selectColor('#6B7280', this)" title="رمادي"></div>
+      </div>
+
+      <!-- أزرار الإجراءات -->
+      <div class="action-row">
+        <button class="action-btn danger" onclick="deleteLastItem()">
+          🗑️ حذف آخر قطعة
+        </button>
+        <button class="action-btn danger" onclick="clearAll()">
+          🔄 مسح الكل
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================= -->
+<!-- JavaScript الرئيسي            -->
+<!-- ============================= -->
+<script>
+/* ===== الحالة العامة ===== */
+let selectedFurniture = 'chair';
+let selectedColor     = '#F5F0E8';
+let placedItems       = [];
+let reticlePosition   = { x: 0, y: 0, z: 0 };
+let reticleVisible    = false;
+let currentPage       = 'welcome';
+const MAX_ITEMS       = 20;
+
+/* ===== إدارة الصفحات ===== */
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById('page-' + page);
+  if (target) {
+    target.classList.add('active');
+    target.classList.add('page-transition-enter');
+    setTimeout(() => target.classList.remove('page-transition-enter'), 600);
+  }
+  currentPage = page;
+
+  /* إخفاء/إظهار شريط التنقل */
+  const nav = document.getElementById('navbar');
+  if (nav) nav.style.display = (page === 'ar') ? 'none' : '';
+}
+
+/* ===== بدء تجربة AR ===== */
+function startARExperience() {
+  /* التحقق من جهاز الجوال */
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (!isMobile && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
+    document.getElementById('error-desktop').classList.add('show');
+    return;
+  }
+
+  /* التحقق من دعم WebXR */
+  if (!navigator.xr) {
+    document.getElementById('error-webxr').classList.add('show');
+    return;
+  }
+
+  navigator.xr.isSessionSupported('immersive-ar').then(supported => {
+    if (!supported) {
+      document.getElementById('error-webxr').classList.add('show');
+      return;
+    }
+    showPage('ar');
+    initARScene();
+  }).catch(() => {
+    document.getElementById('error-webxr').classList.add('show');
+  });
+}
+
+/* ===== الخروج من AR ===== */
+function exitAR() {
+  const scene = document.getElementById('ar-scene');
+  if (scene && scene.is('ar-mode')) {
+    scene.exitVR();
+  }
+  clearAll();
+  showPage('welcome');
+}
+
+/* ===== تهيئة مشهد AR ===== */
+function initARScene() {
+  const scene = document.getElementById('ar-scene');
+  if (!scene) return;
+
+  /* الدخول لوضع AR تلقائياً */
+  scene.addEventListener('loaded', () => {
+    setTimeout(() => {
+      scene.enterAR().catch(err => {
+        if (err.name === 'NotAllowedError') {
+          document.getElementById('error-camera').classList.add('show');
+          showPage('welcome');
+        }
+      });
+    }, 300);
+  }, { once: true });
+
+  /* عند بدء جلسة AR */
+  scene.addEventListener('enter-vr', () => {
+    setupHitTest(scene);
+  });
+
+  /* عند الضغط على الشاشة في وضع AR */
+  scene.addEventListener('click', () => {
+    if (scene.is('ar-mode') && reticleVisible) {
+      placeFurniture(reticlePosition);
+    }
+  });
+}
+
+/* ===== إعداد Hit Test ===== */
+function setupHitTest(scene) {
+  const reticleEl = document.getElementById('reticle');
+  const guidanceEl = document.getElementById('guidance-text');
+
+  scene.renderer.xr.addEventListener('sessionstart', () => {
+    const session = scene.renderer.xr.getSession();
+    session.requestReferenceSpace('viewer').then(viewerSpace => {
+      session.requestReferenceSpace('local').then(localSpace => {
+        session.requestHitTestSource({ space: viewerSpace }).then(hitTestSource => {
+          scene.renderer.setAnimationLoop((time, frame) => {
+            if (!frame) return;
+            const hitTestResults = frame.getHitTestResults(hitTestSource);
+            if (hitTestResults.length > 0) {
+              const hit = hitTestResults[0];
+              const pose = hit.getPose(localSpace);
+              if (pose) {
+                reticleEl.setAttribute('visible', 'true');
+                reticleVisible = true;
+                const p = pose.transform.position;
+                reticlePosition = { x: p.x, y: p.y, z: p.z };
+                reticleEl.setAttribute('position', reticlePosition);
+                if (guidanceEl) guidanceEl.style.display = 'none';
+              }
+            } else {
+              reticleEl.setAttribute('visible', 'false');
+              reticleVisible = false;
+            }
+          });
+        });
+      });
+    });
+  });
+}
+
+/* ===== اختيار الأثاث ===== */
+function selectFurniture(type, btn) {
+  selectedFurniture = type;
+  document.querySelectorAll('.furniture-btn').forEach(b => b.classList.remove('selected'));
+  if (btn) btn.classList.add('selected');
+}
+
+/* ===== اختيار اللون ===== */
+function selectColor(color, el) {
+  selectedColor = color;
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+}
+
+/* ===== بناء كيان الأثاث ===== */
+function buildFurniture(type, color) {
+  const wrapper = document.createElement('a-entity');
+  const darkened = darkenColor(color, 15);
+  const lighter  = lightenColor(color, 20);
+
+  switch(type) {
+
+    case 'chair': {
+      /* المقعد */
+      const seat = document.createElement('a-box');
+      seat.setAttribute('width', '0.45');
+      seat.setAttribute('height', '0.08');
+      seat.setAttribute('depth', '0.45');
+      seat.setAttribute('position', '0 0.45 0');
+      seat.setAttribute('color', color);
+      wrapper.appendChild(seat);
+      /* الظهر */
+      const back = document.createElement('a-box');
+      back.setAttribute('width', '0.45');
+      back.setAttribute('height', '0.5');
+      back.setAttribute('depth', '0.06');
+      back.setAttribute('position', '0 0.7 -0.2');
+      back.setAttribute('color', darkened);
+      wrapper.appendChild(back);
+      /* أرجل الكرسي */
+      [[-0.18, -0.18], [-0.18, 0.18], [0.18, -0.18], [0.18, 0.18]].forEach(([lx, lz]) => {
+        const leg = document.createElement('a-cylinder');
+        leg.setAttribute('radius', '0.03');
+        leg.setAttribute('height', '0.45');
+        leg.setAttribute('position', `${lx} 0.225 ${lz}`);
+        leg.setAttribute('color', darkened);
+        wrapper.appendChild(leg);
+      });
+      break;
+    }
+
+    case 'desk': {
+      /* سطح المكتب */
+      const top = document.createElement('a-box');
+      top.setAttribute('width', '1.2');
+      top.setAttribute('height', '0.05');
+      top.setAttribute('depth', '0.6');
+      top.setAttribute('position', '0 0.73 0');
+      top.setAttribute('color', color);
+      wrapper.appendChild(top);
+      /* أرجل المكتب */
+      [[-0.55, -0.25], [-0.55, 0.25], [0.55, -0.25], [0.55, 0.25]].forEach(([lx, lz]) => {
+        const leg = document.createElement('a-cylinder');
+        leg.setAttribute('radius', '0.04');
+        leg.setAttribute('height', '0.73');
+        leg.setAttribute('position', `${lx} 0.365 ${lz}`);
+        leg.setAttribute('color', darkened);
+        wrapper.appendChild(leg);
+      });
+      /* درج */
+      const drawer = document.createElement('a-box');
+      drawer.setAttribute('width', '0.3');
+      drawer.setAttribute('height', '0.4');
+      drawer.setAttribute('depth', '0.55');
+      drawer.setAttribute('position', '-0.4 0.37 0');
+      drawer.setAttribute('color', darkened);
+      wrapper.appendChild(drawer);
+      break;
+    }
+
+    case 'bookshelf': {
+      /* الإطار */
+      const frame = document.createElement('a-box');
+      frame.setAttribute('width', '0.7');
+      frame.setAttribute('height', '1.5');
+      frame.setAttribute('depth', '0.3');
+      frame.setAttribute('position', '0 0.75 0');
+      frame.setAttribute('color', darkened);
+      wrapper.appendChild(frame);
+      /* الرفوف */
+      [0.4, 0.8, 1.2].forEach(sy => {
+        const shelf = document.createElement('a-box');
+        shelf.setAttribute('width', '0.65');
+        shelf.setAttribute('height', '0.03');
+        shelf.setAttribute('depth', '0.28');
+        shelf.setAttribute('position', `0 ${sy} 0`);
+        shelf.setAttribute('color', color);
+        wrapper.appendChild(shelf);
+        /* كتب على الرف */
+        const bookColors = ['#C85A2A','#4A6FA5','#E8A838','#6B7280','#8B5E3C'];
+        let bx = -0.28;
+        for (let i = 0; i < 5; i++) {
+          const bw = 0.06 + Math.random() * 0.06;
+          const book = document.createElement('a-box');
+          book.setAttribute('width', String(bw));
+          book.setAttribute('height', String(0.15 + Math.random() * 0.1));
+          book.setAttribute('depth', '0.22');
+          book.setAttribute('position', `${bx + bw/2} ${sy + 0.1} 0`);
+          book.setAttribute('color', bookColors[i % bookColors.length]);
+          wrapper.appendChild(book);
+          bx += bw + 0.01;
+        }
+      });
+      break;
+    }
+
+    case 'lamp': {
+      /* العمود */
+      const pole = document.createElement('a-cylinder');
+      pole.setAttribute('radius', '0.02');
+      pole.setAttribute('height', '0.6');
+      pole.setAttribute('position', '0 0.3 0');
+      pole.setAttribute('color', darkened);
+      wrapper.appendChild(pole);
+      /* غطاء المصباح */
+      const shade = document.createElement('a-cone');
+      shade.setAttribute('radius-bottom', '0.15');
+      shade.setAttribute('radius-top', '0.05');
+      shade.setAttribute('height', '0.2');
+      shade.setAttribute('position', '0 0.7 0');
+      shade.setAttribute('color', color);
+      wrapper.appendChild(shade);
+      /* المصباح */
+      const bulb = document.createElement('a-sphere');
+      bulb.setAttribute('radius', '0.05');
+      bulb.setAttribute('position', '0 0.62 0');
+      bulb.setAttribute('color', '#FFFFAA');
+      bulb.setAttribute('material', 'emissive: #FFFF88; emissiveIntensity: 0.8');
+      wrapper.appendChild(bulb);
+      /* قاعدة */
+      const base = document.createElement('a-cylinder');
+      base.setAttribute('radius', '0.09');
+      base.setAttribute('height', '0.04');
+      base.setAttribute('position', '0 0.02 0');
+      base.setAttribute('color', darkened);
+      wrapper.appendChild(base);
+      break;
+    }
+
+    case 'printer': {
+      /* الجسم الرئيسي */
+      const body = document.createElement('a-box');
+      body.setAttribute('width', '0.35');
+      body.setAttribute('height', '0.15');
+      body.setAttribute('depth', '0.28');
+      body.setAttribute('position', '0 0.075 0');
+      body.setAttribute('color', color);
+      wrapper.appendChild(body);
+      /* درج الورق */
+      const tray = document.createElement('a-box');
+      tray.setAttribute('width', '0.3');
+      tray.setAttribute('height', '0.03');
+      tray.setAttribute('depth', '0.2');
+      tray.setAttribute('position', '0 0.17 0.08');
+      tray.setAttribute('color', lighter);
+      wrapper.appendChild(tray);
+      /* درج الإخراج */
+      const out = document.createElement('a-box');
+      out.setAttribute('width', '0.3');
+      out.setAttribute('height', '0.02');
+      out.setAttribute('depth', '0.15');
+      out.setAttribute('position', '0 0.15 -0.12');
+      out.setAttribute('color', lighter);
+      wrapper.appendChild(out);
+      /* لوحة التحكم */
+      const panel = document.createElement('a-box');
+      panel.setAttribute('width', '0.12');
+      panel.setAttribute('height', '0.04');
+      panel.setAttribute('depth', '0.06');
+      panel.setAttribute('position', '0.1 0.16 -0.07');
+      panel.setAttribute('color', '#4A6FA5');
+      wrapper.appendChild(panel);
+      break;
+    }
+
+    case 'cabinet': {
+      /* الجسم */
+      const body = document.createElement('a-box');
+      body.setAttribute('width', '0.45');
+      body.setAttribute('height', '1.0');
+      body.setAttribute('depth', '0.55');
+      body.setAttribute('position', '0 0.5 0');
+      body.setAttribute('color', color);
+      wrapper.appendChild(body);
+      /* الأدراج */
+      [0.75, 0.45, 0.15].forEach((dy, i) => {
+        const drw = document.createElement('a-box');
+        drw.setAttribute('width', '0.42');
+        drw.setAttribute('height', '0.25');
+        drw.setAttribute('depth', '0.52');
+        drw.setAttribute('position', `0 ${dy} 0.02`);
+        drw.setAttribute('color', i % 2 === 0 ? color : lighter);
+        wrapper.appendChild(drw);
+        /* مقبض الدرج */
+        const handle = document.createElement('a-cylinder');
+        handle.setAttribute('radius', '0.015');
+        handle.setAttribute('height', '0.15');
+        handle.setAttribute('rotation', '0 0 90');
+        handle.setAttribute('position', `0 ${dy} 0.29`);
+        handle.setAttribute('color', '#E8A838');
+        wrapper.appendChild(handle);
+      });
+      break;
+    }
+  }
+
+  /* رسوم متحركة بطيئة */
+  wrapper.setAttribute('animation__spin',
+    'property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear');
+
+  return wrapper;
+}
+
+/* ===== وضع الأثاث في المشهد ===== */
+function placeFurniture(position) {
+  if (placedItems.length >= MAX_ITEMS) {
+    showArabicAlert('وصلت للحد الأقصى (٢٠ قطعة)');
+    return;
+  }
+  const scene     = document.getElementById('ar-scene');
+  const container = document.getElementById('furniture-container');
+  if (!container) return;
+
+  const entity = buildFurniture(selectedFurniture, selectedColor);
+  entity.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
+  entity.dataset.furnitureType = selectedFurniture;
+
+  container.appendChild(entity);
+  placedItems.push(entity);
+  updateCounter();
+}
+
+/* ===== حذف آخر قطعة ===== */
+function deleteLastItem() {
+  if (placedItems.length === 0) return;
+  const last = placedItems.pop();
+  if (last && last.parentNode) last.parentNode.removeChild(last);
+  updateCounter();
+}
+
+/* ===== مسح الكل ===== */
+function clearAll() {
+  const container = document.getElementById('furniture-container');
+  if (container) container.innerHTML = '';
+  placedItems = [];
+  updateCounter();
+}
+
+/* ===== تحديث العداد ===== */
+function updateCounter() {
+  const badge = document.getElementById('counter-badge');
+  if (badge) badge.textContent = `القطع: ${placedItems.length}`;
+}
+
+/* ===== مساعد: تعتيم اللون ===== */
+function darkenColor(hex, pct) {
+  const num = parseInt(hex.replace('#',''), 16);
+  const r = Math.max(0, (num >> 16) - pct * 2);
+  const g = Math.max(0, ((num >> 8) & 0xFF) - pct * 2);
+  const b = Math.max(0, (num & 0xFF) - pct * 2);
+  return '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
+}
+
+/* ===== مساعد: تفتيح اللون ===== */
+function lightenColor(hex, pct) {
+  const num = parseInt(hex.replace('#',''), 16);
+  const r = Math.min(255, (num >> 16) + pct * 2);
+  const g = Math.min(255, ((num >> 8) & 0xFF) + pct * 2);
+  const b = Math.min(255, (num & 0xFF) + pct * 2);
+  return '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
+}
+
+/* ===== تنبيه عربي ===== */
+function showArabicAlert(msg) {
+  const el = document.createElement('div');
+  el.style.cssText = `
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+    background:rgba(26,26,46,0.92); color:#fff; font-family:'Tajawal',sans-serif;
+    font-size:1rem; font-weight:700; padding:16px 28px; border-radius:14px;
+    z-index:9999; border:1.5px solid rgba(232,168,56,0.5);
+    backdrop-filter:blur(12px); text-align:center;
+  `;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2800);
+}
+
+/* ===== التحقق من الجهاز عند التحميل ===== */
+window.addEventListener('DOMContentLoaded', () => {
+  showPage('welcome');
+});
+</script>
+
+</body>
+</html>
