@@ -278,13 +278,13 @@ body::after {
   user-select: none;
 }
 
-/* مشهد A-Frame — اللمس يُدار من طبقة #ar-tap-area والمعالج العام لتفادي تعارض الويب آر */
+/* مشهد A-Frame — فوق الفيديو مباشرة؛ طبقة واجهة منفصلة لا تغطي وسط الشفاف على Safari */
 #ar-scene {
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
-  z-index: 2;
+  z-index: 4;
   pointer-events: none !important;
 }
 #ar-scene canvas {
@@ -298,7 +298,7 @@ body::after {
 #ar-tap-area {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 5;
   background: transparent;
   display: none;
   -webkit-tap-highlight-color: transparent;
@@ -347,19 +347,20 @@ body::after {
 }
 .perm-back:hover { color: rgba(255,255,255,0.7); }
 
-/* طبقة AR overlay */
+/* طبقة واجهة AR — بدون flex بعرض الشاشة (كان يسبب اختفاء WebGL تحت الطبقة على iOS Safari) */
 #ar-overlay {
   position: fixed; inset: 0;
-  pointer-events: none; z-index: 5;
+  pointer-events: none;
+  z-index: 7;
   display: none;
-  flex-direction: column; justify-content: space-between;
 }
-#ar-overlay.visible { display: flex; }
+#ar-overlay.visible { display: block; }
 
 /* شريط علوي */
 .ar-topbar {
+  position: absolute; top: 0; left: 0; right: 0;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 20px;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 20px 16px;
   background: linear-gradient(to bottom, rgba(0,0,0,0.65), transparent);
   pointer-events: auto;
 }
@@ -379,7 +380,10 @@ body::after {
 
 /* نص التوجيه */
 #guidance-text {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 92vw;
   background: rgba(0,0,0,0.55); backdrop-filter: blur(8px);
   color: var(--white); font-family: 'Tajawal', sans-serif;
   font-size: 0.95rem; font-weight: 600; padding: 10px 22px; border-radius: 24px;
@@ -390,8 +394,10 @@ body::after {
 
 /* لوحة التحكم السفلية */
 .ar-bottom-panel {
+  position: absolute; bottom: 0; left: 0; right: 0;
   background: rgba(10,12,22,0.82); backdrop-filter: blur(20px);
-  border-radius: 28px 28px 0 0; padding: 20px 20px 32px;
+  border-radius: 28px 28px 0 0;
+  padding: 20px 20px calc(28px + env(safe-area-inset-bottom, 0px));
   pointer-events: auto; border-top: 1px solid rgba(255,255,255,0.08);
 }
 
@@ -399,12 +405,17 @@ body::after {
 .furniture-selector {
   display: flex; gap: 10px; overflow-x: auto;
   padding-bottom: 4px; margin-bottom: 16px; scrollbar-width: none;
+  /* ألوان تُطبَّق على معاينات الأشكال (تعرّف أيضاً بالجافاسكربت عند كل اختيار لون) */
+  --pv-main: #F5F0E8;
+  --pv-dark: #c8c4ba;
+  --pv-light: #ffffff;
+  --pv-mid: #dcd6cc;
 }
 .furniture-selector::-webkit-scrollbar { display: none; }
 .furniture-btn {
-  flex-shrink: 0; width: 72px;
+  flex-shrink: 0; width: 76px;
   background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.1);
-  border-radius: 14px; padding: 10px 4px 8px; cursor: pointer;
+  border-radius: 14px; padding: 8px 4px 8px; cursor: pointer;
   text-align: center; transition: border-color 0.2s, background 0.2s, transform 0.15s;
   font-family: 'Tajawal', sans-serif; color: var(--white);
 }
@@ -413,8 +424,134 @@ body::after {
   border-color: var(--accent); background: rgba(232,168,56,0.15);
   box-shadow: 0 0 16px rgba(232,168,56,0.25);
 }
-.furniture-btn .fb-emoji { font-size: 1.6rem; display: block; margin-bottom: 5px; }
-.furniture-btn .fb-name { font-size: 0.68rem; font-weight: 600; color: rgba(255,255,255,0.85); line-height: 1.2; }
+
+/* معاينات أشكال مصغّرة (تتلون من --pv-main / --pv-dark عبر اختيار اللون السفلي) */
+.fb-preview {
+  display: block; width: 44px; height: 42px; margin: 0 auto 8px;
+  position: relative; pointer-events: none;
+}
+.fb-preview * { pointer-events: none; box-sizing: border-box; }
+
+/* كرسي */
+.tp-chair .pch-seat {
+  position: absolute; bottom: 13px; left: 50%; transform: translateX(-50%);
+  width: 30px; height: 11px; border-radius: 3px;
+  background: linear-gradient(to bottom, var(--pv-light), var(--pv-main));
+  border: 1px solid rgba(0,0,0,0.12);
+}
+.tp-chair .pch-back {
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+  width: 30px; height: 13px; border-radius: 3px 3px 0 0;
+  background: linear-gradient(to bottom, var(--pv-dark), var(--pv-mid));
+  border: 1px solid rgba(0,0,0,0.12);
+}
+.tp-chair .pch-leg {
+  position: absolute; bottom: 2px; width: 6px; height: 13px;
+  border-radius: 2px; background: var(--pv-dark); border: 1px solid rgba(0,0,0,0.15);
+}
+.tp-chair .pch-l1 { left: 8px;}
+.tp-chair .pch-l2 { right: 8px;}
+
+/* مكتب */
+.tp-desk .pdk-top {
+  position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+  width: 36px; height: 8px; border-radius: 2px;
+  background: linear-gradient(to bottom, var(--pv-main), var(--pv-mid));
+  border: 1px solid rgba(0,0,0,0.12);
+}
+.tp-desk .pdk-monitor {
+  position: absolute; bottom: 31px; left: 52%; transform: translateX(-50%);
+  width: 18px; height: 12px; border-radius: 2px;
+  background: var(--pv-dark); border: 2px solid var(--pv-mid);
+}
+.tp-desk .pdk-leg {
+  position: absolute; bottom: 6px; width: 5px; height: 17px;
+  background: var(--pv-dark); border-radius: 1px;
+}
+.tp-desk .pdk-leg.l1 { left: 10px;}
+.tp-desk .pdk-leg.l2 { right: 10px;}
+
+/* رف */
+.tp-shelf .psh-shell {
+  position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
+  width: 30px; height: 38px;
+  border: 3px solid var(--pv-dark); border-radius: 3px;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.08), transparent);
+}
+.tp-shelf .psh-shell::before,
+.tp-shelf .psh-shell::after {
+  content: ''; position: absolute; left: 4px; right: 4px; height: 3px;
+  background: var(--pv-main); border-radius: 1px; opacity: 0.92;
+}
+.tp-shelf .psh-shell::before { top: 10px;}
+.tp-shelf .psh-shell::after { top: 22px;}
+
+/* مصباح */
+.tp-lamp .plm-base {
+  position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
+  width: 16px; height: 8px; border-radius: 50%;
+  background: var(--pv-dark); border: 1px solid rgba(255,255,255,0.12);
+}
+.tp-lamp .plm-shaft {
+  position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%);
+  width: 4px; height: 22px;
+  background: var(--pv-dark); border-radius: 2px;
+}
+.tp-lamp .plm-shade {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 26px; height: 13px;
+  background: linear-gradient(to bottom, var(--pv-main), var(--pv-mid));
+  clip-path: polygon(14% 0, 86% 0, 72% 100%, 28% 100%);
+  border: 1px solid rgba(0,0,0,0.1);
+}
+
+/* طابعة */
+.tp-print .ppe-body {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  width: 34px; height: 22px;
+  border-radius: 4px;
+  background: linear-gradient(to bottom, var(--pv-main), var(--pv-mid));
+  border: 2px solid var(--pv-dark);
+}
+.tp-print .ppe-slot {
+  position: absolute; bottom: 21px; left: 50%; transform: translateX(-50%);
+  width: 24px; height: 7px;
+  border-radius: 3px;
+  background: var(--pv-light); border: 1px solid var(--pv-dark);
+  z-index: 1;
+}
+
+/* خزانة */
+.tp-cabi .pcb-body {
+  position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
+  width: 34px; height: 34px;
+  border-radius: 4px;
+  border: 2px solid var(--pv-dark);
+  background: linear-gradient(115deg, var(--pv-main), var(--pv-mid));
+}
+.tp-cabi .pcb-door1,
+.tp-cabi .pcb-door2 {
+  position: absolute;
+  bottom: 7px;
+  width: 11px;
+  height: 20px;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, var(--pv-light), var(--pv-main));
+  border: 1px solid rgba(0,0,0,0.14);
+}
+.tp-cabi .pcb-door1 { left: 7px;}
+.tp-cabi .pcb-door2 { right: 7px;}
+.tp-cabi .pcb-knob {
+  position: absolute;
+  bottom: 16px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--accent, #E8A838); box-shadow: -9px 0 0 var(--accent, #E8A838), 9px 0 0 var(--accent, #E8A838);
+}
+.tp-cabi .pcb-knob { left: 50%; transform: translateX(-50%);}
+
+.furniture-btn .fb-name { font-size: 0.64rem; font-weight: 600; color: rgba(255,255,255,0.88); line-height: 1.15; }
 
 /* منتقي الألوان */
 .color-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
@@ -682,16 +819,16 @@ body::after {
   <a-scene
     id="ar-scene"
     embedded
-    renderer="alpha: true; antialias: true; logarithmicDepthBuffer: true"
+    renderer="alpha: true; antialias: true; logarithmicDepthBuffer: false"
     background="transparent: true"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
     style="display:none">
 
-    <!-- إضاءة -->
-    <a-light type="ambient"     color="#ffffff" intensity="0.7"></a-light>
-    <a-light type="directional" color="#fff8f0" intensity="1.0" position="1 3 2"></a-light>
-    <a-light type="directional" color="#f0f4ff" intensity="0.4" position="-2 2 -1"></a-light>
+    <!-- إضاءة أقوى لإبراز المواد المعيارية فوق الخلفاء الحية -->
+    <a-light type="ambient"     color="#ffffff" intensity="1.05"></a-light>
+    <a-light type="directional" color="#fff8f0" intensity="1.15" position="2 7 6"></a-light>
+    <a-light type="directional" color="#eaf0ff" intensity="0.55" position="-4 6 -5"></a-light>
 
     <!-- دائرة الاستهداف -->
     <a-ring id="reticle"
@@ -727,27 +864,33 @@ body::after {
       <div class="counter-badge" id="counter-badge">القطع: 0</div>
     </div>
 
-    <div id="guidance-text">بعد الاختيار: اضغط في وسط الشاشة (منطقة الكاميرا) لوضع الأثاث</div>
+    <div id="guidance-text">بعد الاختيار: حرّك الهاتف لتحديد الاتجاه والمسافة ثم انقر وسط الشاشة — ستظهر القطعة أمام الكاميرا</div>
 
     <div class="ar-bottom-panel">
-      <div class="furniture-selector">
-        <button class="furniture-btn selected" data-type="chair" onclick="selectFurniture('chair',this)">
-          <span class="fb-emoji">🪑</span><span class="fb-name">كرسي مكتب</span>
+      <div class="furniture-selector" id="furniture-selector">
+        <button type="button" class="furniture-btn selected" data-type="chair" onclick="selectFurniture('chair',this)" aria-label="كرسي مكتب">
+          <span class="fb-preview tp-chair" aria-hidden="true"><span class="pch-back"></span><span class="pch-seat"></span><span class="pch-leg pch-l1"></span><span class="pch-leg pch-l2"></span></span>
+          <span class="fb-name">كرسي مكتب</span>
         </button>
-        <button class="furniture-btn" data-type="desk" onclick="selectFurniture('desk',this)">
-          <span class="fb-emoji">🖥️</span><span class="fb-name">مكتب دراسة</span>
+        <button type="button" class="furniture-btn" data-type="desk" onclick="selectFurniture('desk',this)" aria-label="مكتب دراسة">
+          <span class="fb-preview tp-desk" aria-hidden="true"><span class="pdk-monitor"></span><span class="pdk-top"></span><span class="pdk-leg l1"></span><span class="pdk-leg l2"></span></span>
+          <span class="fb-name">مكتب دراسة</span>
         </button>
-        <button class="furniture-btn" data-type="bookshelf" onclick="selectFurniture('bookshelf',this)">
-          <span class="fb-emoji">📚</span><span class="fb-name">رف كتب</span>
+        <button type="button" class="furniture-btn" data-type="bookshelf" onclick="selectFurniture('bookshelf',this)" aria-label="رف كتب">
+          <span class="fb-preview tp-shelf" aria-hidden="true"><span class="psh-shell"></span></span>
+          <span class="fb-name">رف كتب</span>
         </button>
-        <button class="furniture-btn" data-type="lamp" onclick="selectFurniture('lamp',this)">
-          <span class="fb-emoji">💡</span><span class="fb-name">مصباح</span>
+        <button type="button" class="furniture-btn" data-type="lamp" onclick="selectFurniture('lamp',this)" aria-label="مصباح">
+          <span class="fb-preview tp-lamp" aria-hidden="true"><span class="plm-shade"></span><span class="plm-shaft"></span><span class="plm-base"></span></span>
+          <span class="fb-name">مصباح</span>
         </button>
-        <button class="furniture-btn" data-type="printer" onclick="selectFurniture('printer',this)">
-          <span class="fb-emoji">🖨️</span><span class="fb-name">طابعة</span>
+        <button type="button" class="furniture-btn" data-type="printer" onclick="selectFurniture('printer',this)" aria-label="طابعة">
+          <span class="fb-preview tp-print" aria-hidden="true"><span class="ppe-slot"></span><span class="ppe-body"></span></span>
+          <span class="fb-name">طابعة</span>
         </button>
-        <button class="furniture-btn" data-type="cabinet" onclick="selectFurniture('cabinet',this)">
-          <span class="fb-emoji">🗄️</span><span class="fb-name">خزانة ملفات</span>
+        <button type="button" class="furniture-btn" data-type="cabinet" onclick="selectFurniture('cabinet',this)" aria-label="خزانة ملفات">
+          <span class="fb-preview tp-cabi" aria-hidden="true"><span class="pcb-body"><span class="pcb-door1"></span><span class="pcb-door2"></span></span><span class="pcb-knob"></span></span>
+          <span class="fb-name">خزانة ملفات</span>
         </button>
       </div>
 
@@ -1065,11 +1208,27 @@ function selectFurniture(type, btn) {
   if (btn) btn.classList.add('selected');
 }
 
+/* لون المواد المعيارية في A-Frame (أوضح على الكاميرا من shader الـ flat وحده) */
+function matStd(hex) {
+  return `shader: standard; roughness: 0.78; metalness: 0.06; envMapIntensity: 0.55; color: ${hex}`;
+}
+
+/* تمضين ألوان معاينات الأزرار لتطابق اختيار اللون تماماً */
+function syncPreviewPalette(hex) {
+  const fs = document.getElementById('furniture-selector');
+  if (!fs) return;
+  fs.style.setProperty('--pv-main', hex);
+  fs.style.setProperty('--pv-dark', adjustColor(hex, -44));
+  fs.style.setProperty('--pv-light', adjustColor(hex, 52));
+  fs.style.setProperty('--pv-mid', adjustColor(hex, 16));
+}
+
 /* ===== اختيار اللون ===== */
 function selectColor(color, el) {
   selectedColor = color;
   document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
   if (el) el.classList.add('selected');
+  syncPreviewPalette(color);
 }
 
 /* ===== بناء كيان الأثاث ===== */
@@ -1101,13 +1260,15 @@ function buildFurniture(type, color) {
       addBox(wrap, '0.7 1.5 0.3', `0 0.75 0`, dark);
       [0.35, 0.75, 1.15].forEach(sy => {
         addBox(wrap, '0.65 0.03 0.28', `0 ${sy} 0`, color);
-        const bkClrs = ['#C85A2A','#4A6FA5','#E8A838','#6B7280','#8B5E3C','#5A8A3C'];
         let bx = -0.28;
+        const shelfTopY = sy + 0.02;
         for (let i = 0; i < 6; i++) {
-          const bw = 0.05 + Math.random() * 0.055;
-          addBox(wrap, `${bw.toFixed(3)} ${(0.12+Math.random()*0.1).toFixed(3)} 0.22`,
-                 `${(bx+bw/2).toFixed(3)} ${sy+0.09} 0`, bkClrs[i % bkClrs.length]);
-          bx += bw + 0.008;
+          const bw = 0.068 + ((i % 3) * 0.024);
+          const bh = 0.14 + ((i % 4) * 0.026);
+          const spine = adjustColor(color, ((i % 2) ? -75 : -45) - i * 5);
+          addBox(wrap, `${bw.toFixed(3)} ${bh.toFixed(3)} 0.22`,
+                 `${(bx + bw / 2).toFixed(3)} ${(shelfTopY + bh / 2).toFixed(3)} 0`, spine);
+          bx += bw + 0.01;
         }
       });
       break;
@@ -1121,7 +1282,7 @@ function buildFurniture(type, color) {
       cone.setAttribute('radius-top',    '0.05');
       cone.setAttribute('height',        '0.2');
       cone.setAttribute('position',      '0 0.72 0');
-      cone.setAttribute('color',         color);
+      cone.setAttribute('material', matStd(color));
       wrap.appendChild(cone);
       const bulb = document.createElement('a-sphere');
       bulb.setAttribute('radius',   '0.05');
@@ -1135,33 +1296,30 @@ function buildFurniture(type, color) {
     case 'printer': {
       addBox(wrap, '0.35 0.15 0.28', `0 0.075 0`,       color);
       addBox(wrap, '0.3  0.03 0.2',  `0 0.17 0.08`,     light);
-      addBox(wrap, '0.3  0.02 0.15', `0 0.15 -0.12`,    light);
-      addBox(wrap, '0.12 0.04 0.06', `0.1 0.16 -0.07`,  '#4A6FA5');
-      addBox(wrap, '0.06 0.02 0.06', `-0.1 0.16 -0.1`,  '#E8A838');
+      addBox(wrap, '0.3  0.02 0.15', `0 0.15 -0.12`,    adjustColor(color, -25));
+      addBox(wrap, '0.12 0.04 0.06', `0.1 0.16 -0.07`,  adjustColor(color, -70));
+      addBox(wrap, '0.06 0.02 0.06', `-0.1 0.16 -0.1`, adjustColor(color, +35));
       break;
     }
 
     case 'cabinet': {
       addBox(wrap, '0.45 1.0 0.55', `0 0.5 0`, color);
+      const knobCol = '#E8A838';
       [0.78, 0.48, 0.18].forEach((dy, i) => {
         addBox(wrap, '0.42 0.26 0.52', `0 ${dy} 0.02`, i%2===0 ? color : light);
-        addCyl(wrap, '0.015 0.15', `0 ${dy} 0.3`, '#E8A838');
+        addCyl(wrap, '0.015 0.15', `0 ${dy} 0.3`, knobCol);
         /* مقبض أفقي */
         const h = document.createElement('a-cylinder');
         h.setAttribute('radius',   '0.015');
         h.setAttribute('height',   '0.15');
         h.setAttribute('rotation', '0 0 90');
         h.setAttribute('position', `0 ${dy} 0.29`);
-        h.setAttribute('color',    '#E8A838');
+        h.setAttribute('material', matStd(knobCol));
         wrap.appendChild(h);
       });
       break;
     }
   }
-
-  /* دوران بطيء */
-  wrap.setAttribute('animation__spin',
-    'property: rotation; to: 0 360 0; loop: true; dur: 9000; easing: linear');
 
   return wrap;
 }
@@ -1174,7 +1332,7 @@ function addBox(parent, dims, pos, color) {
   el.setAttribute('height', h);
   el.setAttribute('depth',  d);
   el.setAttribute('position', pos);
-  el.setAttribute('color', color);
+  el.setAttribute('material', matStd(color));
   parent.appendChild(el);
   return el;
 }
@@ -1186,7 +1344,7 @@ function addCyl(parent, dims, pos, color) {
   el.setAttribute('radius',   r);
   el.setAttribute('height',   h);
   el.setAttribute('position', pos);
-  el.setAttribute('color',    color);
+  el.setAttribute('material', matStd(color));
   parent.appendChild(el);
   return el;
 }
@@ -1201,7 +1359,11 @@ function placeFurniture(position) {
   if (!container) return;
 
   const entity = buildFurniture(selectedFurniture, selectedColor);
-  entity.setAttribute('position', `${position.x.toFixed(3)} ${position.y.toFixed(3)} ${position.z.toFixed(3)}`);
+  const liftY = Math.max(0.03, Number(position.y) + 0.03);
+  entity.setAttribute(
+    'position',
+    `${position.x.toFixed(3)} ${liftY.toFixed(3)} ${position.z.toFixed(3)}`
+  );
   container.appendChild(entity);
   placedItems.push(entity);
   updateCounter();
@@ -1261,6 +1423,7 @@ function showArabicAlert(msg) {
 window.addEventListener('DOMContentLoaded', () => {
   installGlobalARPlacementInput();
   showPage('welcome');
+  syncPreviewPalette(selectedColor);
 });
 
 /* ===== إيقاف الكاميرا عند مغادرة الصفحة ===== */
