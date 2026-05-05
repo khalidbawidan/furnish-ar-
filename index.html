@@ -10,7 +10,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
-<script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
 <style>
 :root {
   --cream: #F5F0E8;
@@ -261,75 +260,55 @@ body::after {
 }
 .cta-center { text-align: center; }
 
-/* ===== صفحة AR =====
-   isolation + translateZ تجبر Safari على مركبة منفصلة: الفيديو خلفًا والـ WebGL فوقًا
-   بدون ذلك غالبًا يُرسم فيديو الكاميرا فوق الكانفاس الشفّاف فيُخفِي الأثاث (العداد ما زال يزيد).
-*/
+/* ===== صفحة AR (وضع بديل: ثنائي الأبعاد فوق الفيديو — بدون WebGL) ===== */
 #page-ar {
   position: fixed; inset: 0; z-index: 200;
   background: #000; overflow: hidden;
-  isolation: isolate;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
 }
 
-/* الفيديو: مصدر بث لـ THREE.VideoTexture؛ يُرمَز أسفل الكانفاس (لا تعتمد رؤيته لتكديسه على WebGL) */
 #camera-feed {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   object-fit: cover;
   z-index: 0;
   background: #000;
+  opacity: 1;
   pointer-events: none;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
   -webkit-user-select: none;
   user-select: none;
 }
-#camera-feed.cam-gl-source {
-  opacity: 0;
-  visibility: visible;
+
+/* قطع مرسومة بـ CSS/HTML — فوق الفيديو مباشرة (Safari/GitHub Pages يعتمد ذلك بشكل جيد جداً) */
+#ar-2d-root {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  pointer-events: none;
+  overflow: hidden;
 }
 
-/* بعض إصدارات iOS تهدّد إيقاف فك تشفير الفيديو إن كان مخفيًا كليًا؛ بقعة شبه شفافة تبقي المصدر نشطًا */
-#camera-feed.cam-gl-source-force {
-  width: 3px !important;
-  height: 3px !important;
-  right: env(safe-area-inset-right, 4px);
-  left: auto;
-  bottom: env(safe-area-inset-bottom, 6px);
-  top: auto;
-  inset: auto;
-  opacity: 0.04;
+.placed-2d-wrap {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
 }
 
-/* كانفاس A-Frame — فوق الفيديو (ترتيب أساس لظهور الأثاث مع ألفا) */
-#ar-scene {
-  position: absolute !important;
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  z-index: 30 !important;
-  pointer-events: none !important;
-  transform: translate3d(0, 0, 1px);
-  -webkit-transform: translate3d(0, 0, 1px);
+.placed-2d-inner {
+  transform-origin: bottom center;
+  transform: translateY(-8%) perspective(680px) rotateX(12deg);
 }
 
-#ar-scene canvas {
-  background: #000;
-  position: absolute !important;
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  pointer-events: none !important;
-  opacity: 1 !important;
-  z-index: 31;
-  mix-blend-mode: normal;
-  transform: translate3d(0, 0, 0);
-  -webkit-transform: translate3d(0, 0, 0);
+/* أكبر من معاينات الأزرار لتبدو قطعة حقيقية فوق الغرفة */
+.fb-preview.placed-scale {
+  width: 120px;
+  height: 116px;
+  margin: 0;
 }
 
-/* طبقة النقر — فوق كانفاس الويب آر */
+/* طبقة النقر */
 #ar-tap-area {
   position: absolute;
   inset: 0;
@@ -802,8 +781,8 @@ body::after {
       <div class="step-card">
         <div class="step-number">02</div>
         <span class="step-icon">📱</span>
-        <div class="step-title">وجّه الكاميرا للأرض</div>
-        <div class="step-desc">حرّك الكاميرا ببطء نحو الأرض حتى يظهر دائرة الاستهداف الذهبية على الشاشة.</div>
+        <div class="step-title">وجّه الكاميرا لغرفتك</div>
+        <div class="step-desc">عند ظهور صورة الغرفة، ستضع قطع الأثاث مباشرة على الشاشة بنقرتك (معاينة ثنائية الأبعاد واضحة).</div>
       </div>
       <div class="step-card">
         <div class="step-number">03</div>
@@ -852,43 +831,13 @@ body::after {
     </div>
   </div>
 
-  <!-- 3. مشهد A-Frame: الفيديو يُرمَى داخل WebGL كخلفية (أفضل حل لمشكل Safari حيث الأثاث يختفي تحت أو فوق الطبقة) -->
-  <a-scene
-    id="ar-scene"
-    embedded
-    renderer="alpha: false; antialias: false; logarithmicDepthBuffer: false; preserveDrawingBuffer: true"
-    vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: false"
-    style="display:none;width:100%;height:100%;box-sizing:border-box">
+  <!-- 3. قطع ثنائية الأبعاد فوق الفيديو — بدون WebGL -->
 
-    <!-- إضاءة أقوى لإبراز المواد المعيارية فوق الخلفاء الحية -->
-    <a-light type="ambient"     color="#ffffff" intensity="1.05"></a-light>
-    <a-light type="directional" color="#fff8f0" intensity="1.15" position="2 7 6"></a-light>
-    <a-light type="directional" color="#eaf0ff" intensity="0.55" position="-4 6 -5"></a-light>
+  <div id="ar-2d-root"></div>
 
-    <!-- دائرة الاستهداف -->
-    <a-ring id="reticle"
-      radius-inner="0.06" radius-outer="0.10"
-      rotation="-90 0 0"
-      position="0 0.01 -1.5"
-      material="color: #E8A838; shader: flat; opacity: 0.92"
-      visible="false">
-    </a-ring>
 
-    <!-- حاوية الأثاث -->
-    <a-entity id="furniture-container"></a-entity>
 
-    <!-- الكاميرا: look-controls يستخدم الجيروسكوب تلقائياً على الجوال -->
-    <a-entity id="ar-camera"
-      camera
-      look-controls="magicWindowTrackingEnabled: true; touchEnabled: false; pointerLockEnabled: false"
-      wasd-controls="enabled: false"
-      position="0 1.6 0">
-    </a-entity>
-
-  </a-scene>
-
-  <!-- طبقة لمس شفافة فوق مشهد الويب آر لضمان استقبال النقر (انظر CSS #ar-tap-area) -->
+  <!-- طبقة اللمس لتسجيل موضع القطعة -->
   <div id="ar-tap-area" aria-hidden="true"></div>
 
   <!-- 4. واجهة التحكم -->
@@ -900,7 +849,7 @@ body::after {
       <div class="counter-badge" id="counter-badge">القطع: 0</div>
     </div>
 
-    <div id="guidance-text">بعد الاختيار: حرّك الهاتف لتحديد الاتجاه والمسافة ثم انقر وسط الشاشة — ستظهر القطعة أمام الكاميرا</div>
+    <div id="guidance-text">بعد الاختيار انقر حيث تريد على صورة الغرفة — ستظهر القطعة مباشرة فوق الفيديو (معاينة 2D واضحة)</div>
 
     <div class="ar-bottom-panel">
       <div class="furniture-selector" id="furniture-selector">
@@ -956,7 +905,6 @@ body::after {
 let selectedFurniture = 'chair';
 let selectedColor     = '#F5F0E8';
 let placedItems       = [];
-let reticleRAFId        = null;
 let arActive            = false;
 let placementTouchStart = null;
 let globalARInputInstalled = false;
@@ -990,132 +938,12 @@ function forceStartAR() {
   document.getElementById('error-desktop').classList.remove('show');
   showPage('ar');
   document.getElementById('ar-permission-screen').style.display = 'flex';
-  document.getElementById('ar-scene').style.display = 'none';
+  const r2 = document.getElementById('ar-2d-root');
+  if (r2) r2.innerHTML = '';
   const tapLayer = document.getElementById('ar-tap-area');
   if (tapLayer) tapLayer.style.display = 'none';
   document.getElementById('page-ar').classList.remove('touch-host');
   document.getElementById('ar-overlay').classList.remove('visible');
-}
-
-/* ===== كانفاس WebGL وحيد مع خلفية فيديو (أفضل نسب نجاح على Safari — تجنّب تكديس فيديو HTML + كانفاس شفاف) ===== */
-let arCompositorResizeBound = false;
-
-/** تقويم مستوى خلف الفيديو داخل PerspectiveCamera لتغطية كامل الإطار */
-let arVideoBackdropRefs = null;
-
-function fitARVideoBackdropPlane() {
-  const ref = arVideoBackdropRefs;
-  if (!ref || !ref.mesh || !ref.cam) return;
-  const mesh = ref.mesh;
-  const cam = ref.cam;
-  const d = Math.abs(mesh.position.z);
-  const tang = THREE.MathUtils.degToRad(cam.fov / 2);
-  const planeH = 2 * tang * d;
-  const planeW = planeH * Math.max(cam.aspect || 1, 0.1);
-  mesh.scale.set(planeW, planeH, 1);
-}
-
-function disposeARVideoBackdropPlane() {
-  const ref = arVideoBackdropRefs;
-  arVideoBackdropRefs = null;
-  const vid = document.getElementById('camera-feed');
-  if (vid) vid.classList.remove('cam-gl-source', 'cam-gl-source-force');
-
-  if (!ref) return;
-
-  try {
-    if (ref.mesh && ref.mesh.parent) ref.mesh.parent.remove(ref.mesh);
-    if (ref.geo) ref.geo.dispose();
-    if (ref.mat) {
-      if (ref.mat.map) ref.mat.map.dispose();
-      ref.mat.dispose();
-    }
-  } catch (_) {}
-}
-
-/**
- * الفيديو كـ THREE.VideoTexture على مستوى ثابت خلف قطع الأثاث — كل الرسم في كانفاس واحد.
- */
-function installARVideoBackdropPlane() {
-  if (typeof THREE === 'undefined') return;
-  if (arVideoBackdropRefs) return;
-
-  const video = document.getElementById('camera-feed');
-  const camEl = document.getElementById('ar-camera');
-
-  video.classList.add('cam-gl-source');
-  /* حيلة أجهزة متأثرة بتعليق المصدر تحت بعض إصدارات iOS */
-  if (/iPhone|iPad|iPod/i.test(navigator.userAgent || navigator.vendor || ''))
-    video.classList.add('cam-gl-source-force');
-
-  const cmp = camEl && camEl.components && camEl.components.camera;
-  if (!video || !cmp || !cmp.camera) return;
-
-  const threeCam = cmp.camera;
-
-  const tex = new THREE.VideoTexture(video);
-  tex.minFilter = THREE.LinearFilter;
-  tex.magFilter = THREE.LinearFilter;
-  tex.generateMipmaps = false;
-  tex.flipY = true;
-  try {
-    if (THREE.SRGBColorSpace !== undefined) tex.colorSpace = THREE.SRGBColorSpace;
-    else if (THREE.sRGBEncoding !== undefined) tex.encoding = THREE.sRGBEncoding;
-  } catch (_) {}
-
-  const geo = new THREE.PlaneGeometry(1, 1);
-  const mat = new THREE.MeshBasicMaterial({
-    map: tex,
-    side: THREE.FrontSide,
-    depthWrite: true,
-    depthTest: true,
-    fog: false
-  });
-  if ('toneMapped' in mat) mat.toneMapped = false;
-
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(0, 0, -5.65);
-  /* المستوي العادي افتراضيًا +Z؛ نلفّه بحيث وجه الطبقة نحو اتجاه النظر −Z المحلي */
-  mesh.rotation.y = Math.PI;
-  mesh.renderOrder = -999;
-
-  threeCam.add(mesh);
-
-  fitARVideoBackdropPlane();
-
-  arVideoBackdropRefs = { mesh, geo, mat, tex, cam: threeCam };
-}
-
-function fixARCompositorNow() {
-  const sceneEl = document.getElementById('ar-scene');
-  if (!sceneEl || !sceneEl.renderer) return;
-  const r = sceneEl.renderer;
-  /* مشهد مركَّب؛ الخلف الفعلي مستوى VideoTexture أمام هذا اللون */
-  r.setClearColor(0x040404, 1);
-  try {
-    if (THREE && THREE.SRGBColorSpace !== undefined && r.outputColorSpace !== undefined)
-      r.outputColorSpace = THREE.SRGBColorSpace;
-    else if (THREE && THREE.sRGBEncoding !== undefined && r.outputEncoding !== undefined)
-      r.outputEncoding = THREE.sRGBEncoding;
-  } catch (_) {}
-
-  const cvs = sceneEl.canvas;
-  if (cvs) {
-    cvs.style.opacity = '1';
-    cvs.style.webkitTransform = 'translate3d(0,0,1px)';
-  }
-  if (typeof sceneEl.resize === 'function') sceneEl.resize();
-  fitARVideoBackdropPlane();
-}
-
-function bindARCompositorResizeOnce() {
-  if (arCompositorResizeBound) return;
-  arCompositorResizeBound = true;
-  const ping = () => {
-    requestAnimationFrame(() => { if (arActive) fixARCompositorNow(); });
-  };
-  window.addEventListener('orientationchange', () => setTimeout(ping, 200));
-  window.addEventListener('resize', ping);
 }
 
 /* ===== منح الإذن والبدء ===== */
@@ -1155,31 +983,13 @@ async function grantPermissions() {
     return;
   }
 
-  /* 3. إظهار المشهد */
+  /* 3. كاميرا + واجهة + طبقة أثاث ثنائية (بدون WebGL — مناسب GitHub Pages على iPhone) */
   document.getElementById('ar-permission-screen').style.display = 'none';
-  document.getElementById('ar-scene').style.display = 'block';
   const tapLayer = document.getElementById('ar-tap-area');
   if (tapLayer) tapLayer.style.display = 'block';
   document.getElementById('ar-overlay').classList.add('visible');
   document.getElementById('page-ar').classList.add('touch-host');
   arActive = true;
-  bindARCompositorResizeOnce();
-
-  /* تهيئة A-Frame ثم تشغيل الاستهداف + خلفية WebGL بالفيديو (طريقة موثوقة على iPhone) */
-  const scene = document.getElementById('ar-scene');
-  const kick = () => {
-    fixARCompositorNow();
-    requestAnimationFrame(() => {
-      fixARCompositorNow();
-      installARVideoBackdropPlane();
-      fitARVideoBackdropPlane();
-      fixARCompositorNow();
-    });
-    startReticleLoop();
-  };
-  /* يومض المُحمِّل قبل kick حتى لا يكون scene.renderer فارغًا */
-  if (scene.hasLoaded) requestAnimationFrame(() => kick());
-  else scene.addEventListener('loaded', () => requestAnimationFrame(kick), { once: true });
 }
 
 /* تجربة AR جاهزة لاستلام اللمس (بعد الموافقة وظهور اللوحة) */
@@ -1198,57 +1008,6 @@ function arSessionReadyForPlacement() {
 function isPointInPlacementZone(clientX, clientY) {
   const topEl = document.elementFromPoint(clientX, clientY);
   return !!topEl && !isUIElement(topEl);
-}
-
-/* حساب نقطة الوضع مرة واحدة (يُستدعى قبل كل نقرة مهمة وبين كل إطار) */
-function tickReticlePosition() {
-  const reticleEl = document.getElementById('reticle');
-  const scene     = document.getElementById('ar-scene');
-  const cameraEl  = document.getElementById('ar-camera');
-
-  if (!reticleEl || !scene || !cameraEl) {
-    window._reticlePos = window._reticlePos || { x: 0, y: 0, z: -2 };
-    return false;
-  }
-  if (!scene.object3D || !cameraEl.object3D) {
-    window._reticlePos = window._reticlePos || { x: 0, y: 0, z: -2 };
-    return false;
-  }
-
-  const camDir = new THREE.Vector3();
-  cameraEl.object3D.getWorldDirection(camDir);
-  const camPos = new THREE.Vector3();
-  cameraEl.object3D.getWorldPosition(camPos);
-
-  const hDir = new THREE.Vector3(camDir.x, 0, camDir.z);
-  if (hDir.length() < 0.001) hDir.set(0, 0, -1);
-  hDir.normalize();
-
-  const downTilt = Math.max(0, -camDir.y);
-  const dist = Math.min(5, Math.max(1, 2.35 - downTilt * 1.9));
-
-  const rx = camPos.x + hDir.x * dist;
-  const rz = camPos.z + hDir.z * dist;
-
-  reticleEl.setAttribute('position', { x: rx, y: 0.01, z: rz });
-  reticleEl.setAttribute('visible', downTilt > 0.04);
-
-  window._reticlePos      = { x: rx, y: 0, z: rz };
-  window._reticleVisible  = downTilt > 0.04;
-
-  return true;
-}
-
-/* ===== حلقة تحديث دائرة الاستهداف ===== */
-function startReticleLoop() {
-  function loop() {
-    if (!arActive) return;
-    reticleRAFId = requestAnimationFrame(loop);
-    tickReticlePosition();
-  }
-
-  tickReticlePosition();
-  loop();
 }
 
 /* عنصر الواجهة — لا توضع أثاثاً عند الضغط على أزرار القائمة */
@@ -1304,8 +1063,7 @@ function installGlobalARPlacementInput() {
 
       if (!isPointInPlacementZone(t.clientX, t.clientY)) return;
 
-      tickReticlePosition();
-      handlePlaceTap();
+      handlePlaceTap(t.clientX, t.clientY);
       if (e.cancelable) e.preventDefault();
     },
     { capture: true, passive: false }
@@ -1320,21 +1078,18 @@ function installGlobalARPlacementInput() {
       if (!arSessionReadyForPlacement()) return;
       if (e.button !== 0) return;
       if (!isPointInPlacementZone(e.clientX, e.clientY)) return;
-      tickReticlePosition();
-      handlePlaceTap();
+      handlePlaceTap(e.clientX, e.clientY);
     },
     { capture: true, passive: true }
   );
 }
 
-function handlePlaceTap() {
+function handlePlaceTap(clientX, clientY) {
   if (!arActive) return;
   const now = Date.now();
   if (now - lastPlacementAt < PLACE_DEBOUNCE_MS) return;
-  tickReticlePosition();
-  if (!window._reticlePos) return;
   lastPlacementAt = now;
-  placeFurniture(window._reticlePos);
+  placeFurniture2D(clientX, clientY);
   const gt = document.getElementById('guidance-text');
   if (gt) gt.style.opacity = '0';
 }
@@ -1342,9 +1097,6 @@ function handlePlaceTap() {
 /* ===== الخروج من AR ===== */
 function exitAR() {
   arActive = false;
-  if (reticleRAFId) { cancelAnimationFrame(reticleRAFId); reticleRAFId = null; }
-
-  disposeARVideoBackdropPlane();
 
   /* إيقاف الكاميرا */
   const video = document.getElementById('camera-feed');
@@ -1353,10 +1105,7 @@ function exitAR() {
     video.srcObject = null;
   }
 
-  /* إخفاء المشهد وإعادة التهيئة */
-  document.getElementById('ar-scene').style.display = 'none';
   document.getElementById('ar-overlay').classList.remove('visible');
-  document.getElementById('reticle').setAttribute('visible', false);
   document.getElementById('guidance-text').style.opacity = '1';
   placementTouchStart = null;
   document.getElementById('page-ar').classList.remove('touch-host');
@@ -1374,9 +1123,54 @@ function selectFurniture(type, btn) {
   if (btn) btn.classList.add('selected');
 }
 
-/* المواد الموحدة: Flat فوق الخلف الحي لا يعتمد على إضاءة WebGL المتغيرة وتظهر أفضل مع ألفا في Safari */
-function matPlacement(hex) {
-  return `shader: flat; color: ${hex}; fog: false; opacity: 1`;
+/* أجزاء HTML لنفس الشكل المرسوم على الأزرار — مع كلاس أكبر لوضعه فوق الغرفة */
+const DOM_SHAPE_FRAG = {
+  chair:
+    '<span class="fb-preview tp-chair placed-scale" aria-hidden="true">' +
+      '<span class="pch-back"></span><span class="pch-seat"></span><span class="pch-leg pch-l1"></span><span class="pch-leg pch-l2"></span>' +
+    '</span>',
+  desk:
+    '<span class="fb-preview tp-desk placed-scale" aria-hidden="true">' +
+      '<span class="pdk-monitor"></span><span class="pdk-top"></span><span class="pdk-leg l1"></span><span class="pdk-leg l2"></span>' +
+    '</span>',
+  bookshelf:
+    '<span class="fb-preview tp-shelf placed-scale" aria-hidden="true">' +
+      '<span class="psh-shell"></span>' +
+    '</span>',
+  lamp:
+    '<span class="fb-preview tp-lamp placed-scale" aria-hidden="true">' +
+      '<span class="plm-shade"></span><span class="plm-shaft"></span><span class="plm-base"></span>' +
+    '</span>',
+  printer:
+    '<span class="fb-preview tp-print placed-scale" aria-hidden="true">' +
+      '<span class="ppe-slot"></span><span class="ppe-body"></span>' +
+    '</span>',
+  cabinet:
+    '<span class="fb-preview tp-cabi placed-scale" aria-hidden="true">' +
+      '<span class="pcb-body"><span class="pcb-door1"></span><span class="pcb-door2"></span></span><span class="pcb-knob"></span>' +
+    '</span>'
+};
+
+function applyPlacedPalette(layerEl, hex) {
+  layerEl.style.setProperty('--pv-main', hex);
+  layerEl.style.setProperty('--pv-dark', adjustColor(hex, -44));
+  layerEl.style.setProperty('--pv-light', adjustColor(hex, 52));
+  layerEl.style.setProperty('--pv-mid', adjustColor(hex, 16));
+}
+
+function buildDomFurniturePiece(type, colorHex) {
+  const wrap = document.createElement('div');
+  wrap.className = 'placed-2d-wrap';
+
+  applyPlacedPalette(wrap, colorHex);
+
+  const inner = document.createElement('div');
+  inner.className = 'placed-2d-inner';
+  inner.innerHTML = DOM_SHAPE_FRAG[type] || DOM_SHAPE_FRAG.chair;
+
+  wrap.appendChild(inner);
+  wrap.dataset.ftype = type;
+  return wrap;
 }
 
 /* تمضين ألوان معاينات الأزرار لتطابق اختيار اللون تماماً */
@@ -1397,141 +1191,26 @@ function selectColor(color, el) {
   syncPreviewPalette(color);
 }
 
-/* ===== بناء كيان الأثاث ===== */
-function buildFurniture(type, color) {
-  const wrap    = document.createElement('a-entity');
-  const dark    = adjustColor(color, -30);
-  const light   = adjustColor(color, +30);
-
-  switch (type) {
-
-    case 'chair': {
-      addBox(wrap, '0.45 0.08 0.45', `0 0.45 0`,     color);
-      addBox(wrap, '0.45 0.5  0.06', `0 0.72 -0.2`,  dark);
-      [[-0.18,-0.18],[-.18,.18],[.18,-.18],[.18,.18]].forEach(([x,z]) =>
-        addCyl(wrap, '0.03 0.45', `${x} 0.225 ${z}`, dark));
-      break;
-    }
-
-    case 'desk': {
-      addBox(wrap, '1.2 0.05 0.6', `0 0.73 0`, color);
-      [[-.55,-.25],[-.55,.25],[.55,-.25],[.55,.25]].forEach(([x,z]) =>
-        addCyl(wrap, '0.04 0.73', `${x} 0.365 ${z}`, dark));
-      addBox(wrap, '0.3 0.4 0.55', `-0.4 0.37 0`, dark);
-      addBox(wrap, '0.25 0.02 0.5', `-0.4 0.57 0`, adjustColor(color, -50));
-      break;
-    }
-
-    case 'bookshelf': {
-      addBox(wrap, '0.7 1.5 0.3', `0 0.75 0`, dark);
-      [0.35, 0.75, 1.15].forEach(sy => {
-        addBox(wrap, '0.65 0.03 0.28', `0 ${sy} 0`, color);
-        let bx = -0.28;
-        const shelfTopY = sy + 0.02;
-        for (let i = 0; i < 6; i++) {
-          const bw = 0.068 + ((i % 3) * 0.024);
-          const bh = 0.14 + ((i % 4) * 0.026);
-          const spine = adjustColor(color, ((i % 2) ? -75 : -45) - i * 5);
-          addBox(wrap, `${bw.toFixed(3)} ${bh.toFixed(3)} 0.22`,
-                 `${(bx + bw / 2).toFixed(3)} ${(shelfTopY + bh / 2).toFixed(3)} 0`, spine);
-          bx += bw + 0.01;
-        }
-      });
-      break;
-    }
-
-    case 'lamp': {
-      addCyl(wrap, '0.02 0.6',  `0 0.3 0`,   dark);
-      addCyl(wrap, '0.09 0.04', `0 0.02 0`,  dark);
-      const cone = document.createElement('a-cone');
-      cone.setAttribute('radius-bottom', '0.15');
-      cone.setAttribute('radius-top',    '0.05');
-      cone.setAttribute('height',        '0.2');
-      cone.setAttribute('position',      '0 0.72 0');
-      cone.setAttribute('material', matPlacement(color));
-      wrap.appendChild(cone);
-      const bulb = document.createElement('a-sphere');
-      bulb.setAttribute('radius',   '0.05');
-      bulb.setAttribute('position', '0 0.63 0');
-      bulb.setAttribute('material', matPlacement('#FFF6C8'));
-      wrap.appendChild(bulb);
-      break;
-    }
-
-    case 'printer': {
-      addBox(wrap, '0.35 0.15 0.28', `0 0.075 0`,       color);
-      addBox(wrap, '0.3  0.03 0.2',  `0 0.17 0.08`,     light);
-      addBox(wrap, '0.3  0.02 0.15', `0 0.15 -0.12`,    adjustColor(color, -25));
-      addBox(wrap, '0.12 0.04 0.06', `0.1 0.16 -0.07`,  adjustColor(color, -70));
-      addBox(wrap, '0.06 0.02 0.06', `-0.1 0.16 -0.1`, adjustColor(color, +35));
-      break;
-    }
-
-    case 'cabinet': {
-      addBox(wrap, '0.45 1.0 0.55', `0 0.5 0`, color);
-      const knobCol = '#E8A838';
-      [0.78, 0.48, 0.18].forEach((dy, i) => {
-        addBox(wrap, '0.42 0.26 0.52', `0 ${dy} 0.02`, i%2===0 ? color : light);
-        addCyl(wrap, '0.015 0.15', `0 ${dy} 0.3`, knobCol);
-        /* مقبض أفقي */
-        const h = document.createElement('a-cylinder');
-        h.setAttribute('radius',   '0.015');
-        h.setAttribute('height',   '0.15');
-        h.setAttribute('rotation', '0 0 90');
-        h.setAttribute('position', `0 ${dy} 0.29`);
-        h.setAttribute('material', matPlacement(knobCol));
-        wrap.appendChild(h);
-      });
-      break;
-    }
-  }
-
-  return wrap;
-}
-
-/* مساعد: إضافة صندوق */
-function addBox(parent, dims, pos, color) {
-  const el = document.createElement('a-box');
-  const [w,h,d] = dims.split(' ');
-  el.setAttribute('width',  w);
-  el.setAttribute('height', h);
-  el.setAttribute('depth',  d);
-  el.setAttribute('position', pos);
-  el.setAttribute('material', matPlacement(color));
-  parent.appendChild(el);
-  return el;
-}
-
-/* مساعد: إضافة أسطوانة */
-function addCyl(parent, dims, pos, color) {
-  const el = document.createElement('a-cylinder');
-  const [r,h] = dims.split(' ');
-  el.setAttribute('radius',   r);
-  el.setAttribute('height',   h);
-  el.setAttribute('position', pos);
-  el.setAttribute('material', matPlacement(color));
-  parent.appendChild(el);
-  return el;
-}
-
-/* ===== وضع الأثاث ===== */
-function placeFurniture(position) {
+/* ===== وضع الأثاث (ثنائي الأبعاد فوق منطقة #page-ar) ===== */
+function placeFurniture2D(clientX, clientY) {
   if (placedItems.length >= MAX_ITEMS) {
     showArabicAlert('وصلت للحد الأقصى (٢٠ قطعة)');
     return;
   }
-  const container = document.getElementById('furniture-container');
-  if (!container) return;
+  const container = document.getElementById('ar-2d-root');
+  const pageAr = document.getElementById('page-ar');
+  if (!container || !pageAr) return;
 
-  const entity = buildFurniture(selectedFurniture, selectedColor);
-  const liftY = Math.max(0.03, Number(position.y) + 0.03);
-  entity.setAttribute(
-    'position',
-    `${position.x.toFixed(3)} ${liftY.toFixed(3)} ${position.z.toFixed(3)}`
-  );
-  entity.setAttribute('scale', '1.35 1.35 1.35');
-  container.appendChild(entity);
-  placedItems.push(entity);
+  const r = pageAr.getBoundingClientRect();
+  const x = Math.max(0, Math.min(r.width, clientX - r.left));
+  const y = Math.max(0, Math.min(r.height, clientY - r.top));
+
+  const wrap = buildDomFurniturePiece(selectedFurniture, selectedColor);
+  wrap.style.left = `${x}px`;
+  wrap.style.top = `${y}px`;
+
+  container.appendChild(wrap);
+  placedItems.push(wrap);
   updateCounter();
 }
 
@@ -1545,8 +1224,8 @@ function deleteLastItem() {
 
 /* ===== مسح الكل ===== */
 function clearAll() {
-  const c = document.getElementById('furniture-container');
-  if (c) c.innerHTML = '';
+  const root = document.getElementById('ar-2d-root');
+  if (root) root.innerHTML = '';
   placedItems = [];
   updateCounter();
 }
