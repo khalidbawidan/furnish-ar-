@@ -668,12 +668,19 @@
         return true;
       }
 
+      var freezeFallbackTimer = null;
+
       function freezeFromMarker(markerIndex, step) {
         var marker = document.getElementById("marker-" + markerIndex);
         var probe = document.getElementById("probe-" + markerIndex);
         var holder = document.getElementById("persistent-holder");
         var pModel = document.getElementById("persistent-model");
         if (!marker || !probe || !holder || !pModel) return;
+
+        if (freezeFallbackTimer) {
+          window.clearTimeout(freezeFallbackTimer);
+          freezeFallbackTimer = null;
+        }
 
         sceneEl.object3D.updateMatrixWorld(true);
         if (!copyWorldTransform(probe.object3D, holder.object3D)) {
@@ -684,45 +691,59 @@
         holder.setAttribute("visible", true);
         holder.object3D.visible = true;
 
-        var loadSettled = false;
+        /*
+         * مع النمودج الثاني والثالث كان حدث model-loaded لا يُطلق أحيانًا (إعادة استخدام GLTF أو الكاش)،
+         * فيبقى showPanel بدون تنفيذ. نعرّض الشرح والأزرار فور بدء تحميل المجسم الثابت.
+         */
+        var probeDismissed = false;
 
         function detachLoadListeners() {
           pModel.removeEventListener("model-loaded", onModelLoaded);
           pModel.removeEventListener("model-error", onModelError);
         }
 
-        function finishFreeze() {
-          probe.setAttribute("visible", false);
-          lockedForStep = true;
-          showPanel(step);
-          setHint();
-        }
-
-        function onModelLoaded() {
-          if (loadSettled) return;
-          loadSettled = true;
+        function dismissDuplicateProbe(reason) {
+          if (probeDismissed) return;
+          probeDismissed = true;
+          if (freezeFallbackTimer) {
+            window.clearTimeout(freezeFallbackTimer);
+            freezeFallbackTimer = null;
+          }
           detachLoadListeners();
           requestAnimationFrame(function () {
             sceneEl.object3D.updateMatrixWorld(true);
             copyWorldTransform(probe.object3D, holder.object3D);
-            finishFreeze();
+            probe.setAttribute("visible", false);
           });
         }
 
-        function onModelError() {
-          if (loadSettled) return;
-          loadSettled = true;
-          detachLoadListeners();
-          showArError(
-            "فشل تحميل المجسم (glb). افتح الصفحة عبر http://localhost وليس file://، وتأكد أن الملفات داخل مجلد models/"
-          );
-          probe.setAttribute("visible", true);
-          holder.setAttribute("visible", false);
-        }
+        lockedForStep = true;
+        showPanel(step);
+        setHint();
 
         detachLoadListeners();
         pModel.addEventListener("model-loaded", onModelLoaded);
         pModel.addEventListener("model-error", onModelError);
+
+        function onModelLoaded() {
+          dismissDuplicateProbe("loaded");
+        }
+
+        function onModelError() {
+          if (probeDismissed) return;
+          probeDismissed = true;
+          if (freezeFallbackTimer) {
+            window.clearTimeout(freezeFallbackTimer);
+            freezeFallbackTimer = null;
+          }
+          detachLoadListeners();
+          showArError(
+            "فشل تحميل المجسم (glb). افتح الصفحة عبر https أو localhost وليس file://، وتأكد أن الملف موجود في models/"
+          );
+          holder.setAttribute("visible", false);
+          holder.object3D.visible = false;
+          probe.setAttribute("visible", true);
+        }
 
         pModel.setAttribute("scale", step.scale);
         pModel.setAttribute("gltf-model", MODEL_IDS[markerIndex]);
@@ -730,9 +751,15 @@
         requestAnimationFrame(function () {
           var c = pModel.components && pModel.components["gltf-model"];
           if (c && c.model) {
-            onModelLoaded();
+            dismissDuplicateProbe("sync-cache");
           }
         });
+
+        /* إن لم يُطلق أي حدث، ننسّق الموضع ونخفي الـ probe بعد مهلة لتفادي ظهور نموذجين */
+        freezeFallbackTimer = window.setTimeout(function () {
+          dismissDuplicateProbe("timeout");
+          freezeFallbackTimer = null;
+        }, 4200);
       }
 
       function onMarkerFound(markerIndex) {
@@ -754,6 +781,10 @@
       }
 
       function onClose() {
+        if (freezeFallbackTimer) {
+          window.clearTimeout(freezeFallbackTimer);
+          freezeFallbackTimer = null;
+        }
         hidePanel();
 
         var holder = document.getElementById("persistent-holder");
