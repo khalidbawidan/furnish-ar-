@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>HIRO AR Museum</title>
+  <!-- Zero A-Frame on this page -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #060608;
+      --surface: #0f0f14;
+      --surface2: #16161e;
+      --gold: #C9A84C;
+      --gold-dim: #9a7a35;
+      --text: #f0f0f0;
+      --text-dim: #999;
+      --border: rgba(201,168,76,0.18);
+      --radius: 12px;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── App container ─────────────────────────────────── */
+    #app {
+      position: relative;
+      width: 100%;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Screens ────────────────────────────────────────── */
+    .screen {
+      position: absolute;
+      top: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 20px 48px;
+      width: 100%;
+      max-width: 480px;
+      left: 50%;
+      transform: translateX(-50%);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+    .screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-50%) translateY(18px);
+    }
+    .screen.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Background accent ──────────────────────────────── */
+    .bg-glow {
+      position: fixed;
+      top: -120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 340px;
+      height: 340px;
+      background: radial-gradient(circle, rgba(201,168,76,0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Screen 1: Welcome ──────────────────────────────── */
+    #screen-welcome {
+      justify-content: center;
+      gap: 0;
+      text-align: center;
+    }
+
+    .logo-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 36px;
+    }
+
+    /* Hiro mark (pure CSS) */
+    .hiro-mark {
+      width: 72px;
+      height: 72px;
+      border: 3px solid #fff;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .hiro-mark .wb {
+      flex: 1;
+      background: #fff;
+    }
+    .hiro-mark .lb {
+      background: #fff;
+      border-top: 3px solid #000;
+      padding: 5px 8px;
+    }
+    .hiro-mark .lb span {
+      font-weight: 900;
+      color: #000;
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+
+    .main-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: 3px;
+      color: #fff;
+      line-height: 1.2;
+    }
+    .main-title em {
+      display: block;
+      font-style: normal;
+      color: var(--gold);
+      font-size: 14px;
+      letter-spacing: 5px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .arabic-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: 16px;
+      direction: rtl;
+    }
+
+    .project-desc {
+      font-size: 14px;
+      color: var(--text-dim);
+      line-height: 1.7;
+      max-width: 320px;
+      margin: 0 auto 36px;
+      direction: rtl;
+    }
+
+    /* Feature cards */
+    .feature-row {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      margin-bottom: 40px;
+      justify-content: center;
+    }
+
+    .feat-card {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 8px;
+      text-align: center;
+      direction: rtl;
+    }
+    .feat-card .feat-icon {
+      font-size: 22px;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .feat-card .feat-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.4;
+    }
+    .feat-card .feat-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      line-height: 1.3;
+    }
+
+    /* Primary button */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--gold);
+      color: #000;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      padding: 15px 36px;
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+      max-width: 300px;
+      transition: background 0.2s, transform 0.1s;
+      direction: rtl;
+    }
+    .btn-primary:hover  { background: #d9b85c; }
+    .btn-primary:active { transform: scale(0.97); }
+
+    /* ── Screen 2: Guide ────────────────────────────────── */
+    #screen-guide {
+      gap: 0;
+      padding-top: 24px;
+    }
+
+    .guide-header {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 28px;
+      gap: 12px;
+    }
+
+    .btn-back {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-size: 18px;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-back:hover { border-color: var(--gold); color: var(--gold); }
+
+    .guide-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #fff;
+      direction: rtl;
+      flex: 1;
+    }
+    .guide-title small {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      margin-top: 2px;
+    }
+
+    /* Step indicator */
+    .steps {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      width: 100%;
+      margin-bottom: 28px;
+      direction: rtl;
+    }
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .step-dot {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 2px solid var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gold);
+    }
+    .step-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-align: center;
+      max-width: 60px;
+      line-height: 1.3;
+    }
+    .step-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+      margin: 0 4px;
+      margin-bottom: 18px;
+    }
+
+    /* Instructions */
+    .guide-instructions {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.7;
+      text-align: center;
+      margin-bottom: 24px;
+      direction: rtl;
+    }
+
+    /* Marker cards */
+    .marker-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      margin-bottom: 28px;
+    }
+
+    .marker-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      direction: rtl;
+      transition: border-color 0.2s;
+    }
+    .marker-card:hover {
+      border-color: rgba(201,168,76,0.38);
+    }
+
+    .marker-img-wrap {
+      width: 64px;
+      height: 64px;
+      flex-shrink: 0;
+      background: #fff;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .marker-img-wrap img {
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
+      display: block;
+    }
+    .marker-img-wrap canvas {
+      display: block;
+    }
+
+    .marker-info { flex: 1; min-width: 0; }
+    .marker-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: 3px;
+    }
+    .marker-artifact {
+      font-size: 13px;
+      color: var(--text);
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .marker-desc {
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.4;
+    }
+
+    /* Guide buttons */
+    .guide-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    .btn-ar {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: var(--gold);
+      color: #000;
+      font-size: 15px;
+      font-weight: 800;
+      padding: 15px 36px;
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-ar:hover  { background: #d9b85c; }
+    .btn-ar:active { transform: scale(0.97); }
+
+    .btn-markers {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: none;
+      color: var(--text-dim);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 11px 24px;
+      border-radius: 50px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      width: 100%;
+      text-decoration: none;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-markers:hover { border-color: var(--gold-dim); color: var(--gold); }
+  </style>
+</head>
+<body>
+<div class="bg-glow"></div>
+<div id="app">
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Screen 1: Welcome                                       -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section id="screen-welcome" class="screen active">
+
+    <div class="logo-wrap">
+      <div class="hiro-mark">
+        <div class="wb"></div>
+        <div class="lb"><span>HIRO</span></div>
+      </div>
+      <div>
+        <div class="main-title">
+          HIRO AR MUSEUM
+          <em>AUGMENTED REALITY</em>
+        </div>
+      </div>
+    </div>
+
+    <div class="arabic-title">متحف الواقع المعزز</div>
+
+    <p class="project-desc">
+      استكشف القطع الأثرية التاريخية بتقنية الواقع المعزز.
+      اطبع الماركرات، وجّه كاميرا هاتفك، وشاهد المعروضات تنبض بالحياة
+      أمامك في الفضاء الحقيقي.
+    </p>
+
+    <div class="feature-row">
+      <div class="feat-card">
+        <span class="feat-icon">🏺</span>
+        <div class="feat-label">قطع أثرية</div>
+        <div class="feat-sub">3 معروضات تاريخية</div>
+      </div>
+      <div class="feat-card">
+        <span class="feat-icon">📱</span>
+        <div class="feat-label">واقع معزز</div>
+        <div class="feat-sub">تجربة ثلاثية الأبعاد</div>
+      </div>
+      <div class="feat-card">
+        <span class="feat-icon">🖨️</span>
+        <div class="feat-label">اطبع وشغّل</div>
+        <div class="feat-sub">ماركرات قابلة للطباعة</div>
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="showGuide()">
+      ابدأ التجربة &nbsp;→
+    </button>
+
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Screen 2: Guide                                         -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section id="screen-guide" class="screen hidden">
+
+    <div class="guide-header">
+      <button class="btn-back" onclick="showWelcome()" title="Back">&#8592;</button>
+      <div class="guide-title">
+        الماركرات
+        <small>MARKERS GUIDE</small>
+      </div>
+    </div>
+
+    <!-- 3-step indicator -->
+    <div class="steps">
+      <div class="step">
+        <div class="step-dot">١</div>
+        <div class="step-label">اطبع</div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step">
+        <div class="step-dot">٢</div>
+        <div class="step-label">افتح الكاميرا</div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step">
+        <div class="step-dot">٣</div>
+        <div class="step-label">وجّه</div>
+      </div>
+    </div>
+
+    <p class="guide-instructions">
+      اطبع صفحة الماركرات ثم افتح تجربة الكاميرا ووجّه الهاتف
+      نحو أيٍّ من الماركرات لمشاهدة القطعة الأثرية تظهر بالواقع المعزز.
+    </p>
+
+    <!-- 3 marker cards -->
+    <div class="marker-grid">
+
+      <!-- Hiro marker -->
+      <div class="marker-card">
+        <div class="marker-img-wrap">
+          <img
+            src="https://raw.githack.com/AR-js-org/AR.js/master/data/images/hiro.png"
+            alt="Hiro marker"
+            width="60" height="60"
+          />
+        </div>
+        <div class="marker-info">
+          <div class="marker-name">ماركر Hiro</div>
+          <div class="marker-artifact">الأمفورا اليونانية</div>
+          <div class="marker-desc">إناء تخزين أثري من اليونان القديمة · القرن الخامس ق.م</div>
+        </div>
+      </div>
+
+      <!-- Kanji marker -->
+      <div class="marker-card">
+        <div class="marker-img-wrap">
+          <img
+            src="https://raw.githack.com/AR-js-org/AR.js/master/data/images/kanji.png"
+            alt="Kanji marker"
+            width="60" height="60"
+          />
+        </div>
+        <div class="marker-info">
+          <div class="marker-name">ماركر Kanji</div>
+          <div class="marker-artifact">الهرم المصري العظيم</div>
+          <div class="marker-desc">رمز حضارة الفراعنة · 2560 ق.م</div>
+        </div>
+      </div>
+
+      <!-- Cross marker (canvas-drawn) -->
+      <div class="marker-card">
+        <div class="marker-img-wrap">
+          <canvas id="cross-canvas-guide" width="60" height="60"></canvas>
+        </div>
+        <div class="marker-info">
+          <div class="marker-name">ماركر الصليب</div>
+          <div class="marker-artifact">العملة الرومانية</div>
+          <div class="marker-desc">دينار برونزي من الإمبراطورية الرومانية · 100 م</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="guide-btns">
+      <button class="btn-ar" onclick="location.href='ar.html'">
+        &#x1F4F7;&nbsp; فتح الكاميرا &nbsp;&#8592; Start AR
+      </button>
+      <a class="btn-markers" href="markers.html" target="_blank">
+        &#x1F5A8;&nbsp; طباعة الماركرات &nbsp;/ Print Markers
+      </a>
+    </div>
+
+  </section>
+
+</div><!-- /#app -->
+
+<script>
+  // ── Draw cross marker on canvas ───────────────────────────
+  function drawCrossMarker(canvas) {
+    var s = canvas.width;
+    var ctx = canvas.getContext('2d');
+    var bw = Math.round(s * 0.14);
+
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, s, s);
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, s, bw);
+    ctx.fillRect(0, s - bw, s, bw);
+    ctx.fillRect(0, 0, bw, s);
+    ctx.fillRect(s - bw, 0, bw, s);
+
+    var innerSize = s - bw * 2;
+
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(bw, bw, innerSize, innerSize);
+
+    var crossW = Math.round(innerSize * 0.4);
+    var crossOff = bw + Math.round((innerSize - crossW) / 2);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(bw, crossOff, innerSize, crossW);
+    ctx.fillRect(crossOff, bw, crossW, innerSize);
+  }
+
+  (function () {
+    var c = document.getElementById('cross-canvas-guide');
+    if (c) drawCrossMarker(c);
+  })();
+
+  // ── Screen transitions ────────────────────────────────────
+  function showGuide() {
+    var w = document.getElementById('screen-welcome');
+    var g = document.getElementById('screen-guide');
+    w.classList.remove('active');
+    w.classList.add('hidden');
+    g.classList.remove('hidden');
+    g.classList.add('active');
+    window.scrollTo(0, 0);
+  }
+
+  function showWelcome() {
+    var w = document.getElementById('screen-welcome');
+    var g = document.getElementById('screen-guide');
+    g.classList.remove('active');
+    g.classList.add('hidden');
+    w.classList.remove('hidden');
+    w.classList.add('active');
+    window.scrollTo(0, 0);
+  }
+</script>
+</body>
+</html>

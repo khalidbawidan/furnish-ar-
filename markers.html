@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HIRO AR Museum — Printable Markers</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #fff;
+      color: #111;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      padding: 24px 20px 40px;
+    }
+
+    /* ── Page header ── */
+    .page-header {
+      text-align: center;
+      margin-bottom: 32px;
+      border-bottom: 2px solid #111;
+      padding-bottom: 20px;
+    }
+    .page-header h1 {
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      color: #111;
+    }
+    .page-header .sub {
+      font-size: 13px;
+      color: #555;
+      margin-top: 4px;
+      letter-spacing: 1px;
+    }
+    .page-header .ar-sub {
+      font-size: 15px;
+      font-weight: 700;
+      color: #C9A84C;
+      margin-top: 6px;
+    }
+
+    /* ── Marker cards grid ── */
+    .markers-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      justify-content: center;
+      margin-bottom: 36px;
+    }
+
+    .marker-card {
+      width: 220px;
+      border: 1.5px solid #ccc;
+      border-radius: 10px;
+      padding: 18px 14px;
+      text-align: center;
+      background: #fafafa;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .marker-img-wrap {
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 14px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .marker-img-wrap img {
+      width: 190px;
+      height: 190px;
+      object-fit: contain;
+      display: block;
+      image-rendering: pixelated;
+    }
+    .marker-img-wrap canvas {
+      display: block;
+      image-rendering: pixelated;
+    }
+
+    .card-marker-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #888;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+    .card-artifact-name {
+      font-size: 16px;
+      font-weight: 800;
+      color: #111;
+      margin-bottom: 4px;
+      direction: rtl;
+    }
+    .card-desc {
+      font-size: 11px;
+      color: #666;
+      line-height: 1.5;
+      direction: rtl;
+    }
+
+    /* ── Instructions section ── */
+    .instructions {
+      max-width: 680px;
+      margin: 0 auto 32px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 20px 24px;
+      background: #f9f9f9;
+    }
+    .instructions h2 {
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      color: #111;
+    }
+    .instructions ol {
+      padding-right: 20px;
+      padding-left: 0;
+    }
+    .instructions li {
+      font-size: 13px;
+      color: #444;
+      margin-bottom: 7px;
+      line-height: 1.5;
+      direction: rtl;
+    }
+    .instructions .en-steps {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid #e0e0e0;
+    }
+    .instructions .en-steps ol {
+      padding-left: 20px;
+      padding-right: 0;
+      direction: ltr;
+    }
+    .instructions .en-steps h3 {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #555;
+      direction: ltr;
+    }
+
+    /* ── Print button ── */
+    .print-wrap {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .btn-print {
+      background: #C9A84C;
+      color: #000;
+      font-size: 15px;
+      font-weight: 800;
+      padding: 12px 32px;
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-print:hover { background: #d9b85c; }
+
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 12px;
+      font-size: 13px;
+      color: #888;
+      text-decoration: none;
+    }
+    .back-link:hover { color: #C9A84C; }
+
+    /* ── Print media ── */
+    @media print {
+      .print-wrap,
+      .back-link { display: none !important; }
+
+      body { padding: 12px; }
+
+      .marker-card {
+        border-color: #999;
+        background: #fff;
+      }
+
+      .markers-grid {
+        gap: 16px;
+      }
+
+      .instructions {
+        background: #fff;
+        border-color: #999;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page-header">
+    <h1>HIRO AR MUSEUM</h1>
+    <div class="sub">PRINTABLE MARKERS · اطبع وشغّل</div>
+    <div class="ar-sub">قص الماركرات واستخدمها مع تطبيق الواقع المعزز</div>
+  </div>
+
+  <!-- Print button (hidden in print) -->
+  <div class="print-wrap">
+    <button class="btn-print" onclick="window.print()">🖨️ طباعة / Print</button>
+  </div>
+
+  <!-- Marker cards -->
+  <div class="markers-grid">
+
+    <!-- Card 1: Hiro -->
+    <div class="marker-card">
+      <div class="marker-img-wrap">
+        <img
+          src="https://raw.githack.com/AR-js-org/AR.js/master/data/images/hiro.png"
+          alt="Hiro marker"
+          width="190" height="190"
+        />
+      </div>
+      <div class="card-marker-label">Hiro Marker</div>
+      <div class="card-artifact-name">الأمفورا اليونانية</div>
+      <div class="card-desc">Ancient Greek Amphora<br/>اليونان القديمة · القرن الخامس ق.م</div>
+    </div>
+
+    <!-- Card 2: Kanji -->
+    <div class="marker-card">
+      <div class="marker-img-wrap">
+        <img
+          src="https://raw.githack.com/AR-js-org/AR.js/master/data/images/kanji.png"
+          alt="Kanji marker"
+          width="190" height="190"
+        />
+      </div>
+      <div class="card-marker-label">Kanji Marker</div>
+      <div class="card-artifact-name">الهرم المصري العظيم</div>
+      <div class="card-desc">Great Pyramid of Egypt<br/>مصر الفرعونية · 2560 ق.م</div>
+    </div>
+
+    <!-- Card 3: Cross (canvas-drawn) -->
+    <div class="marker-card">
+      <div class="marker-img-wrap">
+        <canvas id="cross-canvas-markers" width="190" height="190"></canvas>
+      </div>
+      <div class="card-marker-label">Cross Marker</div>
+      <div class="card-artifact-name">العملة الرومانية</div>
+      <div class="card-desc">Roman Bronze Coin<br/>الإمبراطورية الرومانية · 100 م</div>
+    </div>
+
+  </div>
+
+  <!-- Instructions -->
+  <div class="instructions">
+    <h2>تعليمات الاستخدام — Instructions</h2>
+    <ol>
+      <li>اطبع هذه الصفحة بالحجم الكامل (A4، بدون تحجيم).</li>
+      <li>قص كل ماركر بشكل مربع مع ترك هامش أبيض حوله.</li>
+      <li>ضع الماركر على سطح مستوٍ وجيد الإضاءة.</li>
+      <li>افتح تطبيق الواقع المعزز ووجّه الكاميرا نحو الماركر.</li>
+      <li>انتظر ثوانٍ حتى تظهر القطعة الأثرية فوق الماركر.</li>
+    </ol>
+    <div class="en-steps">
+      <h3>English Steps:</h3>
+      <ol>
+        <li>Print this page at full size (A4, no scaling).</li>
+        <li>Cut each marker square, leaving a white border around it.</li>
+        <li>Place the marker on a flat, well-lit surface.</li>
+        <li>Open the AR experience and point the camera at the marker.</li>
+        <li>Wait a few seconds — the artifact will appear above the marker.</li>
+      </ol>
+    </div>
+  </div>
+
+  <a class="back-link" href="index.html">&#8592; العودة للرئيسية / Back to Home</a>
+
+  <script>
+    function drawCrossMarker(canvas) {
+      var s = canvas.width;
+      var ctx = canvas.getContext('2d');
+      var bw = Math.round(s * 0.14);
+
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, s, s);
+
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, s, bw);
+      ctx.fillRect(0, s - bw, s, bw);
+      ctx.fillRect(0, 0, bw, s);
+      ctx.fillRect(s - bw, 0, bw, s);
+
+      var innerSize = s - bw * 2;
+
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(bw, bw, innerSize, innerSize);
+
+      var crossW = Math.round(innerSize * 0.4);
+      var crossOff = bw + Math.round((innerSize - crossW) / 2);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(bw, crossOff, innerSize, crossW);
+      ctx.fillRect(crossOff, bw, crossW, innerSize);
+    }
+
+    (function () {
+      var c = document.getElementById('cross-canvas-markers');
+      if (c) drawCrossMarker(c);
+    })();
+  </script>
+</body>
+</html>
