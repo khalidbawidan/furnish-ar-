@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Hiro — AR Museum</title>
+
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+
+  <!-- Register AR components before scene is parsed -->
+  <script>
+    /* ── Sticky: once found, never disappears ── */
+    AFRAME.registerComponent('sticky-ar', {
+      init: function () {
+        this.found = false;
+        this.el.addEventListener('markerFound', () => { this.found = true; });
+      },
+      tick: function () {
+        if (this.found) this.el.object3D.visible = true;
+      }
+    });
+
+    /* ── Info card always faces camera ── */
+    AFRAME.registerComponent('face-cam', {
+      init: function () { this._v = new THREE.Vector3(); },
+      tick: function () {
+        const cam = this.el.sceneEl.camera;
+        if (cam) {
+          cam.getWorldPosition(this._v);
+          this.el.object3D.lookAt(this._v);
+        }
+      }
+    });
+  </script>
+
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --gold:   #C9A84C;
+      --gold2:  #F0D080;
+      --bg:     #060608;
+      --bg2:    #0d0d10;
+      --border: #1e1e24;
+      --text:   #ffffff;
+      --muted:  #666672;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); overflow: hidden; }
+    body { font-family: 'Segoe UI', system-ui, Arial, sans-serif; }
+
+    /* ═══════════════════════════════
+       SCREEN SYSTEM
+    ═══════════════════════════════ */
+    .screen {
+      position: fixed; inset: 0; z-index: 400;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: var(--bg);
+      padding: 28px 22px;
+      overflow-y: auto;
+      transition: opacity .5s ease, transform .5s ease;
+    }
+    .screen.gone {
+      opacity: 0; pointer-events: none;
+      transform: translateY(12px);
+    }
+
+    /* ═══════════════════════════════
+       HIRO MARK
+    ═══════════════════════════════ */
+    .hiro-mark {
+      border: 3px solid #fff;
+      background: #000;
+      display: flex; flex-direction: column;
+      flex-shrink: 0;
+    }
+    .hiro-mark .wb { background: #fff; }
+    .hiro-mark .lb { background: #fff; border-top: 2px solid #000; display: flex; align-items: center; }
+    .hiro-mark .lb span { font-weight: 900; color: #000; line-height: 1; }
+
+    /* sizes */
+    .hiro-mark.lg  { width: 130px; height: 130px; }
+    .hiro-mark.lg  .lb { padding: 8px 12px; }
+    .hiro-mark.lg  .lb span { font-size: 18px; }
+
+    .hiro-mark.sm  { width: 36px; height: 36px; }
+    .hiro-mark.sm  .lb { padding: 2px 4px; }
+    .hiro-mark.sm  .lb span { font-size: 8px; }
+
+    /* ═══════════════════════════════
+       BUTTONS
+    ═══════════════════════════════ */
+    .btn {
+      border: 1px solid var(--border); background: transparent; color: var(--text);
+      font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+      padding: 12px 32px; cursor: pointer;
+      transition: background .2s, color .2s, border-color .2s;
+      min-height: 46px;
+    }
+    .btn:hover        { background: var(--text); color: #000; border-color: var(--text); }
+    .btn.gold         { border-color: var(--gold); color: var(--gold); }
+    .btn.gold:hover   { background: var(--gold); color: #000; }
+    .btn.solid        { background: var(--text); color: #000; border-color: var(--text); }
+    .btn.solid:hover  { background: #e0e0e0; }
+
+    .back-btn {
+      position: absolute; top: 20px; left: 20px;
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--muted); background: none; border: none; cursor: pointer;
+      padding: 8px 0;
+    }
+    .back-btn:hover { color: var(--text); }
+
+    /* ═══════════════════════════════
+       WELCOME SCREEN
+    ═══════════════════════════════ */
+    #welcome { gap: 0; }
+
+    .w-top {
+      display: flex; align-items: center; gap: 18px;
+      margin-bottom: 36px;
+    }
+    .w-brand h1 {
+      font-size: 38px; font-weight: 900; letter-spacing: 8px;
+      text-transform: uppercase; line-height: 1;
+    }
+    .w-brand .sub1 {
+      font-size: 11px; letter-spacing: 4px; text-transform: uppercase;
+      color: var(--gold); margin-top: 4px;
+    }
+    .w-brand .sub2 {
+      font-size: 13px; color: var(--muted); margin-top: 2px;
+      letter-spacing: 1px;
+    }
+
+    .w-divider {
+      width: 100%; max-width: 420px;
+      height: 1px; background: var(--border);
+      margin: 0 auto 28px;
+    }
+
+    .w-desc {
+      font-size: 13px; color: #9090a0; line-height: 1.85;
+      text-align: center; max-width: 380px;
+      margin-bottom: 32px; direction: rtl;
+    }
+
+    .features {
+      display: flex; gap: 12px;
+      margin-bottom: 36px;
+    }
+    .feat {
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      padding: 14px 16px; text-align: center;
+      min-width: 100px;
+    }
+    .feat-icon { display: block; font-size: 20px; margin-bottom: 7px; }
+    .feat-label { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+    .feat-val   { font-size: 11px; color: var(--text); margin-top: 2px; }
+
+    .w-note {
+      margin-top: 18px;
+      font-size: 9px; color: #3a3a44; letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* ═══════════════════════════════
+       GUIDE SCREEN
+    ═══════════════════════════════ */
+    #guide { justify-content: flex-start; padding-top: 64px; gap: 20px; }
+
+    .g-header { text-align: center; }
+    .g-header h2 {
+      font-size: 11px; letter-spacing: 5px; text-transform: uppercase;
+      color: var(--gold); margin-bottom: 8px;
+    }
+    .g-header p {
+      font-size: 12px; color: var(--muted); direction: rtl; line-height: 1.8;
+    }
+
+    /* Steps */
+    .steps {
+      display: flex; align-items: center; gap: 0;
+      width: 100%; max-width: 420px;
+    }
+    .step-item { flex: 1; text-align: center; }
+    .step-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; color: var(--muted);
+      margin: 0 auto 6px;
+    }
+    .step-label { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+    .step-line  { flex: 1; height: 1px; background: var(--border); }
+
+    /* Marker grid */
+    .marker-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 10px; width: 100%; max-width: 420px;
+    }
+    .mcard {
+      border: 1px solid var(--border); background: var(--bg2);
+      padding: 14px 8px; text-align: center;
+      cursor: default;
+    }
+    .mcard .mn     { font-size: 26px; font-weight: 900; color: #1a1a22; line-height: 1; margin-bottom: 8px; }
+    .mcard img, .mcard canvas {
+      display: block; margin: 0 auto 10px;
+      width: 72px; height: 72px;
+      image-rendering: pixelated;
+      border: 2px solid #fff;
+    }
+    .mcard h3      { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 3px; }
+    .mcard .aname  { font-size: 10px; color: var(--muted); padding-top: 7px; border-top: 1px solid var(--border); margin-top: 7px; }
+
+    /* ═══════════════════════════════
+       AR HUD
+    ═══════════════════════════════ */
+    #hud {
+      background: transparent;
+      justify-content: space-between;
+      pointer-events: none;
+      padding: 18px 20px;
+    }
+    .hud-top, .hud-bot {
+      width: 100%; display: flex;
+      align-items: center; justify-content: space-between;
+    }
+    .hud-logo { display: flex; align-items: center; gap: 10px; }
+    .hud-name { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 1px 6px #000; }
+    .hud-artifact {
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--gold); text-shadow: 0 1px 6px #000;
+      transition: opacity .4s;
+    }
+    .exit-btn {
+      pointer-events: all;
+      padding: 7px 16px;
+      border: 1px solid rgba(255,255,255,.25);
+      background: rgba(0,0,0,.6); color: #fff;
+      font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+      cursor: pointer;
+    }
+    .scan-hint {
+      font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+      color: rgba(255,255,255,.3); text-shadow: 0 1px 4px #000;
+      text-align: center; width: 100%;
+    }
+
+    /* Reticle */
+    #reticle {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 56px; height: 56px;
+      z-index: 401; pointer-events: none; display: none;
+    }
+    #reticle::before, #reticle::after {
+      content: ''; position: absolute;
+      border-color: rgba(255,255,255,.4); border-style: solid;
+    }
+    #reticle::before { top: 0; left: 0; width: 14px; height: 14px; border-width: 2px 0 0 2px; }
+    #reticle::after  { bottom: 0; right: 0; width: 14px; height: 14px; border-width: 0 2px 2px 0; }
+
+    /* A-Frame canvas */
+    #ar-scene {
+      display: none; position: fixed; inset: 0; z-index: 200;
+    }
+    .a-enter-vr, .a-enter-ar { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- ════════════════════════════════════════
+       SCREEN 1 — WELCOME
+  ════════════════════════════════════════ -->
+  <div class="screen" id="welcome">
+
+    <div class="w-top">
+      <div class="hiro-mark lg">
+        <div class="wb" style="flex:1"></div>
+        <div class="lb"><span>Hiro</span></div>
+      </div>
+      <div class="w-brand">
+        <h1>HIRO</h1>
+        <div class="sub1">AR Museum</div>
+        <div class="sub2">متحف الواقع المعزز</div>
+      </div>
+    </div>
+
+    <div class="w-divider"></div>
+
+    <p class="w-desc">
+      اكتشف القطع الأثرية التاريخية في عالمك الحقيقي —
+      اطبع الماركر ووجّه كاميرتك عليه لترى القطعة
+      تظهر أمامك بأبعاد ثلاثية وتبقى ثابتة حتى بعد إزالة الماركر
+    </p>
+
+    <div class="features">
+      <div class="feat">
+        <span class="feat-icon">🏺</span>
+        <div class="feat-val">٣</div>
+        <div class="feat-label">قطع أثرية</div>
+      </div>
+      <div class="feat">
+        <span class="feat-icon">📡</span>
+        <div class="feat-val">AR</div>
+        <div class="feat-label">واقع معزز</div>
+      </div>
+      <div class="feat">
+        <span class="feat-icon">🖨️</span>
+        <div class="feat-val">Print</div>
+        <div class="feat-label">اطبع وشغّل</div>
+      </div>
+    </div>
+
+    <button class="btn gold" onclick="showGuide()">ابدأ التجربة &rarr;</button>
+
+    <p class="w-note">Hiro AR Museum &nbsp;·&nbsp; Powered by AR.js &amp; A-Frame</p>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       SCREEN 2 — GUIDE
+  ════════════════════════════════════════ -->
+  <div class="screen gone" id="guide">
+    <button class="back-btn" onclick="showWelcome()">&#8592; رجوع</button>
+
+    <div class="g-header">
+      <h2>الماركرات</h2>
+      <p>اطبع أي ماركر ووجّه الكاميرا عليه<br>القطعة تطلع وتبقى ثابتة</p>
+    </div>
+
+    <!-- Steps -->
+    <div class="steps">
+      <div class="step-item">
+        <div class="step-num">1</div>
+        <div class="step-label">اطبع</div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step-item">
+        <div class="step-num">2</div>
+        <div class="step-label">افتح الكاميرا</div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step-item">
+        <div class="step-num">3</div>
+        <div class="step-label">وجّه</div>
+      </div>
+    </div>
+
+    <!-- Marker cards -->
+    <div class="marker-grid">
+
+      <div class="mcard">
+        <div class="mn">01</div>
+        <img src="https://raw.githack.com/AR-js-org/AR.js/master/data/images/hiro.png" alt="Hiro">
+        <h3>Hiro</h3>
+        <div class="aname">🏺 الأمفورا</div>
+      </div>
+
+      <div class="mcard">
+        <div class="mn">02</div>
+        <img src="https://raw.githack.com/AR-js-org/AR.js/master/data/images/kanji.png" alt="Kanji">
+        <h3>Kanji</h3>
+        <div class="aname">🔺 الهرم</div>
+      </div>
+
+      <div class="mcard">
+        <div class="mn">03</div>
+        <canvas id="bc-canvas" width="72" height="72"></canvas>
+        <h3>Barcode</h3>
+        <div class="aname">🪙 القطعة</div>
+      </div>
+
+    </div>
+
+    <button class="btn solid" onclick="startAR()">فتح الكاميرا &larr; Start AR</button>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       AR HUD
+  ════════════════════════════════════════ -->
+  <div class="screen gone" id="hud">
+    <div class="hud-top">
+      <div class="hud-logo">
+        <div class="hiro-mark sm">
+          <div class="wb" style="flex:1"></div>
+          <div class="lb"><span>H</span></div>
+        </div>
+        <span class="hud-name">HIRO AR</span>
+      </div>
+      <button class="exit-btn" onclick="location.reload()">&#10005; Exit</button>
+    </div>
+    <div class="hud-bot">
+      <div class="hud-artifact" id="hud-artifact"></div>
+      <div class="scan-hint">وجّه على الماركر</div>
+    </div>
+  </div>
+
+  <div id="reticle"></div>
+
+  <!-- ════════════════════════════════════════
+       AR SCENE
+  ════════════════════════════════════════ -->
+  <a-scene
+    id="ar-scene"
+    embedded
+    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
+
+    <!-- ── MARKER 1: Hiro → Amphora ── -->
+    <a-marker preset="hiro"
+      smooth="true" smoothCount="8" smoothTolerance=".01"
+      sticky-ar
+      id="m-hiro">
+
+      <a-entity
+        gltf-model="models/Amphora.glb"
+        scale="0.5 0.5 0.5"
+        position="0 0 0"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 9000; easing: linear">
+      </a-entity>
+
+      <!-- Info card -->
+      <a-entity position="0 1.4 0" face-cam>
+        <a-plane color="#000000" opacity="0.88" width="1.9" height="0.7" position="0 0 -0.005"></a-plane>
+        <a-text value="AMPHORA" color="#C9A84C" align="center" width="1.6" position="0 0.17 0" font="mozillavr"></a-text>
+        <a-text value="Ancient Greece  ·  5th Century BC" color="#cccccc" align="center" width="1.5" position="0 -0.02 0"></a-text>
+        <a-text value="Classical storage vessel for wine &amp; olive oil" color="#888888" align="center" width="1.4" position="0 -0.2 0"></a-text>
+      </a-entity>
+    </a-marker>
+
+    <!-- ── MARKER 2: Kanji → Pyramid ── -->
+    <a-marker preset="kanji"
+      smooth="true" smoothCount="8" smoothTolerance=".01"
+      sticky-ar
+      id="m-kanji">
+
+      <!-- Base platform -->
+      <a-box
+        color="#8B7355"
+        width="1.3" height="0.06" depth="1.3"
+        position="0 0.03 0">
+      </a-box>
+      <!-- Pyramid body -->
+      <a-cone
+        color="#D4AF37"
+        metalness="0.3" roughness="0.7"
+        radius-bottom="0.55" radius-top="0.01" height="1.1"
+        position="0 0.61 0"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 7000; easing: linear">
+      </a-cone>
+      <!-- Capstone glow -->
+      <a-sphere
+        color="#FFE060"
+        radius="0.06"
+        position="0 1.16 0">
+      </a-sphere>
+
+      <!-- Info card -->
+      <a-entity position="0 1.55 0" face-cam>
+        <a-plane color="#000000" opacity="0.88" width="1.9" height="0.7" position="0 0 -0.005"></a-plane>
+        <a-text value="GREAT PYRAMID" color="#C9A84C" align="center" width="1.6" position="0 0.17 0" font="mozillavr"></a-text>
+        <a-text value="Ancient Egypt  ·  2560 BC" color="#cccccc" align="center" width="1.5" position="0 -0.02 0"></a-text>
+        <a-text value="Symbol of the Pharaonic civilization" color="#888888" align="center" width="1.4" position="0 -0.2 0"></a-text>
+      </a-entity>
+    </a-marker>
+
+    <!-- ── MARKER 3: Barcode value=5 → Roman Coin ── -->
+    <a-marker type="barcode" value="5"
+      smooth="true" smoothCount="8" smoothTolerance=".01"
+      sticky-ar
+      id="m-coin">
+
+      <!-- Coin body -->
+      <a-cylinder
+        color="#CD7F32"
+        metalness="0.75" roughness="0.2"
+        height="0.09" radius="0.52"
+        position="0 0.045 0"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 5500; easing: linear">
+      </a-cylinder>
+      <!-- Rim -->
+      <a-torus
+        color="#7B4F1E"
+        radius="0.53" radius-tubular="0.025"
+        position="0 0.09 0">
+      </a-torus>
+      <!-- Engraving -->
+      <a-text
+        value="SPQR"
+        color="#F0C040"
+        position="0 0.1 0"
+        rotation="-90 0 0"
+        align="center"
+        width="0.55">
+      </a-text>
+
+      <!-- Info card -->
+      <a-entity position="0 0.9 0" face-cam>
+        <a-plane color="#000000" opacity="0.88" width="1.9" height="0.7" position="0 0 -0.005"></a-plane>
+        <a-text value="ROMAN COIN" color="#C9A84C" align="center" width="1.6" position="0 0.17 0" font="mozillavr"></a-text>
+        <a-text value="Roman Empire  ·  100 AD" color="#cccccc" align="center" width="1.5" position="0 -0.02 0"></a-text>
+        <a-text value="Bronze denarius  ·  SPQR inscription" color="#888888" align="center" width="1.4" position="0 -0.2 0"></a-text>
+      </a-entity>
+    </a-marker>
+
+    <a-entity camera id="main-cam"></a-entity>
+  </a-scene>
+
+  <script>
+    /* ── Draw barcode marker value=5 ── */
+    (function () {
+      const c = document.getElementById('bc-canvas');
+      const ctx = c.getContext('2d');
+      const sz = c.width, cell = sz / 5;
+
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, sz, sz);
+
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0,          0,          sz,   cell);
+      ctx.fillRect(0,          sz - cell,  sz,   cell);
+      ctx.fillRect(0,          0,          cell, sz);
+      ctx.fillRect(sz - cell,  0,          cell, sz);
+
+      // value 5 = binary 000000101 → bits 0 (top-left) and 2 (top-right) = black
+      const value = 5;
+      for (let r = 0; r < 3; r++) {
+        for (let cl = 0; cl < 3; cl++) {
+          if ((value >> (r * 3 + cl)) & 1) {
+            ctx.fillRect((cl + 1) * cell, (r + 1) * cell, cell, cell);
+          }
+        }
+      }
+    })();
+
+    /* ── Navigation ── */
+    function showGuide()   {
+      fade('welcome', 'guide');
+    }
+    function showWelcome() {
+      fade('guide', 'welcome');
+    }
+    function fade(fromId, toId) {
+      document.getElementById(fromId).classList.add('gone');
+      document.getElementById(toId).classList.remove('gone');
+    }
+
+    function startAR() {
+      document.getElementById('guide').classList.add('gone');
+
+      const scene = document.getElementById('ar-scene');
+      scene.style.display = 'block';
+
+      const hud = document.getElementById('hud');
+      hud.classList.remove('gone');
+      hud.style.background = 'transparent';
+
+      document.getElementById('reticle').style.display = 'block';
+
+      /* Update HUD artifact label when marker detected */
+      const labels = {
+        'hiro':  '🏺 الأمفورا · Amphora',
+        'kanji': '🔺 الهرم · Pyramid',
+        'coin':  '🪙 القطعة · Roman Coin'
+      };
+      const hudArtifact = document.getElementById('hud-artifact');
+
+      scene.addEventListener('loaded', () => {
+        document.getElementById('m-hiro') .addEventListener('markerFound', () => { hudArtifact.textContent = labels.hiro;  });
+        document.getElementById('m-kanji').addEventListener('markerFound', () => { hudArtifact.textContent = labels.kanji; });
+        document.getElementById('m-coin') .addEventListener('markerFound', () => { hudArtifact.textContent = labels.coin;  });
+
+        document.getElementById('m-hiro') .addEventListener('markerLost',  () => { setTimeout(() => { if (!hudArtifact.textContent) return; }, 2000); });
+      });
+    }
+  </script>
+
+</body>
+</html>
