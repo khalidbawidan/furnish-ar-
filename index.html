@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Hiro — AR Museum</title>
+
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      color: #fff;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .screen {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      transition: opacity 0.55s ease;
+      padding: 24px 20px;
+      overflow-y: auto;
+    }
+    .screen.gone { opacity: 0; pointer-events: none; }
+
+    /* ── Hiro mark ── */
+    .hiro-mark {
+      width: 140px; height: 140px;
+      background: #000;
+      border: 4px solid #fff;
+      display: flex; flex-direction: column;
+      margin-bottom: 26px; flex-shrink: 0;
+    }
+    .hiro-mark .wb { flex: 1; background: #fff; }
+    .hiro-mark .lb { padding: 7px 11px; background: #fff; border-top: 2px solid #000; }
+    .hiro-mark .lb span { font-size: 19px; font-weight: 900; color: #000; }
+
+    .splash-sub {
+      font-size: 10px; letter-spacing: 5px;
+      text-transform: uppercase; color: #444;
+      margin-bottom: 40px;
+    }
+
+    .btn {
+      padding: 11px 30px;
+      border: 1px solid #333; background: transparent;
+      color: #fff; font-size: 10px; letter-spacing: 3px;
+      text-transform: uppercase; cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .btn:hover, .btn.solid { background: #fff; color: #000; border-color: #fff; }
+    .btn.solid:hover { background: #ddd; }
+
+    /* ── Guide ── */
+    #guide { justify-content: flex-start; padding-top: 32px; }
+
+    .g-title { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 8px; }
+    .g-desc  { font-size: 11px; color: #555; line-height: 1.8; text-align: center; max-width: 360px; margin-bottom: 24px; }
+
+    .marker-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      width: 100%; max-width: 520px;
+      margin-bottom: 28px;
+    }
+
+    .mcard {
+      border: 1px solid #1c1c1c; background: #090909;
+      padding: 14px 10px; text-align: center;
+    }
+    .mcard canvas, .mcard img {
+      display: block; margin: 0 auto 10px;
+      width: 80px; height: 80px;
+      image-rendering: pixelated;
+      border: 2px solid #fff;
+    }
+    .mcard .mn  { font-size: 28px; font-weight: 900; color: #1a1a1a; line-height: 1; }
+    .mcard h3   { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 3px; }
+    .mcard .aname { font-size: 10px; color: #666; padding-top: 8px; border-top: 1px solid #1a1a1a; margin-top: 8px; }
+
+    /* ── AR HUD ── */
+    #hud {
+      background: transparent;
+      justify-content: space-between;
+      pointer-events: none;
+      padding: 18px 20px;
+    }
+    .hud-row { width: 100%; display: flex; align-items: center; justify-content: space-between; }
+    .hud-logo { display: flex; align-items: center; gap: 9px; }
+    .hm { width: 32px; height: 32px; background: rgba(0,0,0,.65); border: 2px solid rgba(255,255,255,.7); display: flex; flex-direction: column; }
+    .hm .w { flex: 1; background: rgba(255,255,255,.85); }
+    .hm .b { background: rgba(255,255,255,.85); padding: 1px 3px; }
+    .hm .b span { font-size: 7px; font-weight: 900; color: #000; }
+    .hud-name { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 1px 6px #000; }
+    .exit-btn {
+      pointer-events: all; padding: 6px 14px;
+      border: 1px solid rgba(255,255,255,.3); background: rgba(0,0,0,.6);
+      color: #fff; font-size: 9px; letter-spacing: 2px;
+      text-transform: uppercase; cursor: pointer;
+    }
+    .scan-hint { width: 100%; text-align: center; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,.35); text-shadow: 0 1px 4px #000; }
+
+    /* Center reticle */
+    #reticle { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 60px; height: 60px; z-index: 301; pointer-events: none; display: none; }
+    #reticle::before, #reticle::after { content: ''; position: absolute; border-color: rgba(255,255,255,.4); border-style: solid; }
+    #reticle::before { top:0; left:0; width:16px; height:16px; border-width:2px 0 0 2px; }
+    #reticle::after  { bottom:0; right:0; width:16px; height:16px; border-width:0 2px 2px 0; }
+
+    /* A-Frame scene */
+    #ar-scene { display: none; position: fixed; inset: 0; z-index: 200; }
+
+    .a-enter-vr { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- ░░░ SCREEN 1 — SPLASH ░░░ -->
+  <div class="screen" id="splash">
+    <div class="hiro-mark">
+      <div class="wb"></div>
+      <div class="lb"><span>Hiro</span></div>
+    </div>
+    <div class="splash-sub">AR Museum Experience</div>
+    <button class="btn" onclick="showGuide()">Explore &rarr;</button>
+  </div>
+
+  <!-- ░░░ SCREEN 2 — GUIDE ░░░ -->
+  <div class="screen gone" id="guide">
+    <p class="g-title">AR Markers</p>
+    <p class="g-desc">
+      اطبع أي ماركر، ووجه الكاميرا عليه —<br>
+      القطعة الأثرية تطلع فوقه مباشرة
+    </p>
+
+    <div class="marker-grid">
+
+      <!-- Card 1: Hiro → Amphora -->
+      <div class="mcard">
+        <div class="mn">01</div>
+        <img
+          src="https://raw.githack.com/AR-js-org/AR.js/master/data/images/hiro.png"
+          alt="Hiro marker">
+        <h3>Hiro</h3>
+        <div class="aname">🏺 الأمفورا</div>
+      </div>
+
+      <!-- Card 2: Kanji → Pyramid -->
+      <div class="mcard">
+        <div class="mn">02</div>
+        <img
+          src="https://raw.githack.com/AR-js-org/AR.js/master/data/images/kanji.png"
+          alt="Kanji marker">
+        <h3>Kanji</h3>
+        <div class="aname">🔺 الهرم</div>
+      </div>
+
+      <!-- Card 3: Barcode → Coin -->
+      <div class="mcard">
+        <div class="mn">03</div>
+        <canvas id="bc-canvas" width="80" height="80"></canvas>
+        <h3>Barcode</h3>
+        <div class="aname">🪙 القطعة</div>
+      </div>
+
+    </div>
+
+    <button class="btn solid" onclick="startAR()">فتح الكاميرا &larr; Start AR</button>
+  </div>
+
+  <!-- ░░░ AR HUD ░░░ -->
+  <div class="screen gone" id="hud">
+    <div class="hud-row">
+      <div class="hud-logo">
+        <div class="hm"><div class="w"></div><div class="b"><span>H</span></div></div>
+        <span class="hud-name">HIRO AR</span>
+      </div>
+      <button class="exit-btn" onclick="location.reload()">✕ Exit</button>
+    </div>
+    <div class="scan-hint">وجّه الكاميرا على الماركر — Point at marker</div>
+  </div>
+
+  <div id="reticle"></div>
+
+  <!-- ░░░ AR SCENE ░░░ -->
+  <a-scene id="ar-scene"
+    embedded
+    arjs="sourceType: webcam; debugUIEnabled: false; matrixCodeType: 3x3;">
+
+    <!-- ── MARKER 1: Hiro → Amphora (GLB) ── -->
+    <a-marker preset="hiro">
+      <a-entity
+        gltf-model="models/Amphora.glb"
+        scale="0.5 0.5 0.5"
+        position="0 0 0"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 9000; easing: linear">
+      </a-entity>
+    </a-marker>
+
+    <!-- ── MARKER 2: Kanji → Egyptian Pyramid ── -->
+    <a-marker preset="kanji">
+      <!-- Pyramid body -->
+      <a-cone
+        color="#D4AF37"
+        metalness="0.35" roughness="0.65"
+        radius-bottom="0.6" radius-top="0.01" height="1.3"
+        position="0 0.65 0"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 7000; easing: linear">
+      </a-cone>
+      <!-- Stone base platform -->
+      <a-box
+        color="#A08A5A"
+        width="1.5" height="0.07" depth="1.5"
+        position="0 0.035 0">
+      </a-box>
+    </a-marker>
+
+    <!-- ── MARKER 3: Barcode value=5 → Ancient Coin ── -->
+    <a-marker type="barcode" value="5">
+      <!-- Coin body -->
+      <a-cylinder
+        color="#CD7F32"
+        metalness="0.7" roughness="0.25"
+        height="0.08" radius="0.55"
+        position="0 0.04 0"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 5000; easing: linear">
+      </a-cylinder>
+      <!-- Rim ring -->
+      <a-torus
+        color="#8B4513"
+        radius="0.57" radius-tubular="0.02"
+        position="0 0.08 0">
+      </a-torus>
+      <!-- Engraved text -->
+      <a-text
+        value="AR\nMUSEUM"
+        color="#FFD700"
+        position="0 0.09 0"
+        rotation="-90 0 0"
+        align="center"
+        width="0.7">
+      </a-text>
+    </a-marker>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script>
+    /* ── Draw barcode marker value=5 on canvas ── */
+    (function () {
+      const c = document.getElementById('bc-canvas');
+      const ctx = c.getContext('2d');
+      const sz = c.width;       // 80px
+      const cell = sz / 5;      // 5×5 grid
+
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, sz, sz);
+
+      // Outer black border (1-cell wide)
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0,         0,         sz,   cell);   // top
+      ctx.fillRect(0,         sz - cell, sz,   cell);   // bottom
+      ctx.fillRect(0,         0,         cell, sz);     // left
+      ctx.fillRect(sz - cell, 0,         cell, sz);     // right
+
+      // Inner 3×3 cells for value 5 (binary: 000000101)
+      // bit 0 → row=0,col=0 (top-left inner)  → BLACK
+      // bit 2 → row=0,col=2 (top-right inner) → BLACK
+      const value = 5;
+      for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 3; col++) {
+          if ((value >> (row * 3 + col)) & 1) {
+            ctx.fillStyle = '#000';
+            ctx.fillRect((col + 1) * cell, (row + 1) * cell, cell, cell);
+          }
+        }
+      }
+    })();
+
+    /* ── Navigation ── */
+    function showGuide() {
+      document.getElementById('splash').classList.add('gone');
+      document.getElementById('guide').classList.remove('gone');
+    }
+
+    function startAR() {
+      document.getElementById('guide').classList.add('gone');
+
+      const scene = document.getElementById('ar-scene');
+      scene.style.display = 'block';
+
+      const hud = document.getElementById('hud');
+      hud.classList.remove('gone');
+      hud.style.background = 'transparent';
+
+      document.getElementById('reticle').style.display = 'block';
+    }
+  </script>
+
+</body>
+</html>
