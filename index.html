@@ -10,6 +10,7 @@
   <!-- A-Frame 1.3 يتعاون مع AR.js بثبات أكثر من 1.4+ -->
   <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.7/aframe/build/aframe-ar.js"></script>
+  <script type="module" src="https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js"></script>
   <style>
     :root {
       --bg: #0c1410;
@@ -201,6 +202,157 @@
       line-height: 1.75;
       color: var(--text);
     }
+
+    /* شريط أدوات شبيه بعارض النماذج (مساعدات تحت الشرح) */
+    .panel-tools {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 18px;
+      margin: 14px 0 16px;
+      padding-top: 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .panel-tools.is-hidden { display: none; }
+    .panel-tool-cell {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .panel-tool-tip {
+      position: absolute;
+      bottom: calc(100% + 10px);
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 11px;
+      font-size: 0.76rem;
+      white-space: nowrap;
+      background: rgba(0, 0, 0, 0.92);
+      color: #fff;
+      border-radius: 8px;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+      z-index: 2;
+    }
+    .panel-tool-tip::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      margin-left: -6px;
+      border: 6px solid transparent;
+      border-top-color: rgba(0, 0, 0, 0.92);
+    }
+    .panel-tool-cell:hover .panel-tool-tip,
+    .panel-tool-cell:focus-within .panel-tool-tip {
+      opacity: 1;
+      visibility: visible;
+    }
+    .panel-tool-caption {
+      font-size: 0.72rem;
+      color: var(--muted);
+      max-width: 88px;
+      text-align: center;
+      line-height: 1.35;
+    }
+    .panel-tool-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a1a;
+      color: #f0f0f0;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px rgba(0, 0, 0, 0.35);
+      transition: transform 0.12s ease, background 0.12s ease;
+    }
+    .panel-tool-btn:active { transform: scale(0.95); background: #2a2a2a; }
+    .panel-tool-btn svg { width: 24px; height: 24px; display: block; }
+
+    #panel-help {
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      font-size: 0.82rem;
+      line-height: 1.65;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    #panel-help.is-hidden { display: none; }
+
+    /* نافذة عارض model-viewer (أزرار AR «عرض في مساحتك» كما على الجوال) */
+    #mv-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      background: rgba(0, 0, 0, 0.82);
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      backdrop-filter: blur(4px);
+    }
+    #mv-backdrop.visible { display: flex; }
+    .mv-sheet {
+      width: min(640px, 100%);
+      max-height: calc(100vh - 32px);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border-radius: 16px;
+      background: linear-gradient(180deg, #1e2420 0%, #121716 100%);
+      border: 1px solid rgba(212, 175, 55, 0.25);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+    }
+    .mv-sheet-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    #mv-sheet-title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    #mv-close-sheet {
+      font-family: inherit;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    #mv-close-sheet:active { background: rgba(255, 255, 255, 0.08); }
+    #inspect-mv {
+      width: 100%;
+      height: min(52vh, 420px);
+      min-height: 280px;
+      background: radial-gradient(circle at 50% 30%, #2a332e 0%, #0d1110 70%);
+    }
+    .mv-sheet-foot {
+      padding: 10px 14px 14px;
+      font-size: 0.82rem;
+      line-height: 1.55;
+      color: var(--muted);
+      text-align: center;
+    }
+
     #btn-close {
       margin-top: 14px;
       width: 100%;
@@ -275,7 +427,68 @@
     <div id="panel" aria-live="polite">
       <h3 id="panel-title"></h3>
       <p id="panel-body"></p>
+      <div id="panel-help" class="is-hidden" aria-live="polite">
+        <strong>نصائح سريعة</strong>
+        <ul style="margin:8px 0 0;padding-right:18px;line-height:1.65;font-size:0.9em">
+          <li>المجسم الذي ظهر من الماركر <strong>يثبت</strong> في المشهد بعد إبعاده حتى تضغط «إغلاق والانتقال…».</li>
+          <li>«<strong>واقع معزز / AR</strong>» يفتح نفس الملف في عارض Google — ابحث عن «عرض في مساحتك» أو «View in your space» على الجوال.</li>
+          <li>«<strong>ملء الشاشة</strong>» توسع الصفحة لمشاهدة الكاميرا والشرح أوضح.</li>
+          <li>لأفضل نتيجة استخدم رابطًا بـ <strong>https</strong> (مثل GitHub Pages).</li>
+        </ul>
+      </div>
+      <div id="panel-tools" class="panel-tools is-hidden" aria-label="أدوات المجسم">
+        <div class="panel-tool-cell">
+          <span class="panel-tool-tip">فتح نفس القطعة في عارض Google — زر «عرض في مساحتك» على الجوال</span>
+          <button type="button" class="panel-tool-btn" id="btn-open-ar-viewer" aria-describedby="cap-ar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path d="M8 10V8a4 4 0 0 1 8 0v2M6 10h12v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-8z" />
+              <path d="M9 14h6" stroke-linecap="round" />
+            </svg>
+          </button>
+          <span class="panel-tool-caption" id="cap-ar">واقع معزّز / AR</span>
+        </div>
+        <div class="panel-tool-cell">
+          <span class="panel-tool-tip">تكبير الصفحة لرؤية أوضح للكاميرا والمجسم</span>
+          <button type="button" class="panel-tool-btn" id="btn-fullscreen" aria-describedby="cap-fs">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+              <path d="M9 3H3v6M15 3h6v6M3 15v6h6M15 21h6v-6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <span class="panel-tool-caption" id="cap-fs">ملء الشاشة</span>
+        </div>
+        <div class="panel-tool-cell">
+          <span class="panel-tool-tip">نصائح سريعة للتجربة</span>
+          <button type="button" class="panel-tool-btn" id="btn-panel-help" aria-describedby="cap-help">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 16v-1M12 8v4" stroke-linecap="round" />
+            </svg>
+          </button>
+          <span class="panel-tool-caption" id="cap-help">مساعدة</span>
+        </div>
+      </div>
       <button type="button" id="btn-close">إغلاق والانتقال للقطعة التالية</button>
+    </div>
+  </div>
+
+  <div id="mv-backdrop" role="presentation">
+    <div class="mv-sheet" role="dialog" aria-modal="true" aria-labelledby="mv-sheet-title">
+      <div class="mv-sheet-head">
+        <h2 id="mv-sheet-title">المجسم</h2>
+        <button type="button" id="mv-close-sheet">إغلاق</button>
+      </div>
+      <model-viewer
+        id="inspect-mv"
+        alt=""
+        camera-controls
+        touch-action="pan-y"
+        auto-rotate
+        shadow-intensity="1"
+        exposure="1"
+        ar
+        ar-modes="webxr scene-viewer quick-look"
+      ></model-viewer>
+      <p class="mv-sheet-foot">على أندرويد قد يظهر زر «عرض في مساحتك»؛ على آيفون قد يفتح «Quick Look». استخدم نفس رابط الموقع عبر <strong>https</strong> (مثل GitHub Pages) لأفضل دعم.</p>
     </div>
   </div>
 
@@ -333,19 +546,22 @@
           markerIndex: 0,
           title: "الخيمة العربية البدوية",
           body: "تجسّد الخيمة في التراث السعودي والخليجي بيتًا متنقلًا يقي من حر الرمال وبرّ البادية، ولُحمت من شعر الجمال والغنم وحبال السدى. كان للفضاء داخل الخيمة وأمام بابها «المجرّد» معنًى ضيافي: الجلوس بالدائرة واستقبال الضيوف وفقًا لعَرف الكرم الصحراوي.",
-          scale: "0.5 0.5 0.5"
+          scale: "0.5 0.5 0.5",
+          modelSrc: "models/arabic_tent.glb"
         },
         {
           markerIndex: 1,
           title: "الدلة السعودية وشرب القهوة العربية",
           body: "الدلة رمز الضيافة في المملكة وفي المجتمع الخليجي؛ تُحضَّر فيها القهوة العربية المذاق المميز مع الهيل، وتُقدَّم بترتيب «الفنجال» من اليمين للضيف الكبير. شرب القهوة في المجلس ليس عادة يومية فقط، بل تعبير عن الترحيب والاحترام والوفاء بذوق الموروث الشفهي المسجل لدى اليونسكو.",
-          scale: "0.2 0.2 0.2"
+          scale: "0.2 0.2 0.2",
+          modelSrc: "models/saudi_dallah.glb"
         },
         {
           markerIndex: 2,
           title: "السيف العربي",
           body: "السيف العربي قطعة فرسخ في التاريخ العربي قبل الإسلام وبعده: دلالة على الشرف والدفاع عن العرض، ومصنوع بتقنيات سبك وسنّ ونقش زخرفية تعكس مهارة الصناع المحليّين في شبه الجزيرة. في السياق السعودي اليوم يبقى رمزًا للكرامة وموروث المهرجانات والرياضات التقليدية.",
-          scale: "0.45 0.45 0.45"
+          scale: "0.45 0.45 0.45",
+          modelSrc: "models/arabic_sword.glb"
         }
       ];
 
@@ -365,6 +581,13 @@
       var btnReload = document.getElementById("btn-reload");
       var sceneEl = document.getElementById("ar-scene");
       var arError = document.getElementById("ar-error");
+      var panelTools = document.getElementById("panel-tools");
+      var panelHelp = document.getElementById("panel-help");
+      var mvBackdrop = document.getElementById("mv-backdrop");
+      var mvTitle = document.getElementById("mv-sheet-title");
+      var inspectMv = document.getElementById("inspect-mv");
+      var currentAbsoluteGlb = "";
+      var currentInspectorTitle = "";
 
       function showArError(msg) {
         if (!arError) return;
@@ -395,10 +618,35 @@
       function showPanel(step) {
         panelTitle.textContent = step.title;
         panelBody.textContent = step.body;
+        try {
+          currentAbsoluteGlb = new URL(step.modelSrc, window.location.href).href;
+        } catch (e) {
+          currentAbsoluteGlb = "";
+        }
+        currentInspectorTitle = step.title || "";
+        if (panelHelp) panelHelp.classList.add("is-hidden");
+        if (panelTools) panelTools.classList.remove("is-hidden");
         panel.classList.add("visible");
       }
 
+      function closeInspectorOverlay() {
+        if (!mvBackdrop || !inspectMv) return;
+        mvBackdrop.classList.remove("visible");
+        inspectMv.removeAttribute("src");
+      }
+
+      function openInspectorOverlay() {
+        if (!currentAbsoluteGlb || !inspectMv || !mvBackdrop) return;
+        inspectMv.alt = currentInspectorTitle;
+        mvTitle.textContent = currentInspectorTitle || "عرض ثلاثي الأبعاد";
+        inspectMv.src = currentAbsoluteGlb;
+        mvBackdrop.classList.add("visible");
+      }
+
       function hidePanel() {
+        closeInspectorOverlay();
+        if (panelHelp) panelHelp.classList.add("is-hidden");
+        if (panelTools) panelTools.classList.add("is-hidden");
         panel.classList.remove("visible");
       }
 
@@ -559,6 +807,32 @@
           });
         }
       }
+
+      document.getElementById("btn-open-ar-viewer").addEventListener("click", openInspectorOverlay);
+      document.getElementById("mv-close-sheet").addEventListener("click", closeInspectorOverlay);
+      mvBackdrop.addEventListener("click", function (e) {
+        if (e.target === mvBackdrop) closeInspectorOverlay();
+      });
+
+      document.getElementById("btn-panel-help").addEventListener("click", function () {
+        if (!panelHelp) return;
+        panelHelp.classList.toggle("is-hidden");
+      });
+
+      document.getElementById("btn-fullscreen").addEventListener("click", function () {
+        var doc = document.documentElement;
+        if (!document.fullscreenElement) {
+          (doc.requestFullscreen || doc.webkitRequestFullscreen || doc.mozRequestFullScreen || doc.msRequestFullscreen).call(doc);
+        } else {
+          (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen).call(document);
+        }
+      });
+
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && mvBackdrop && mvBackdrop.classList.contains("visible")) {
+          closeInspectorOverlay();
+        }
+      });
 
       document.getElementById("btn-start").addEventListener("click", function () {
         welcome.style.display = "none";
