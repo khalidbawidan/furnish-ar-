@@ -3,28 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>متحف الواقع المعزز — الثقافة السعودية</title>
+  <title>أثر — جولة ثقافة سعودية بالواقع المعزّز</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400;500;600;700&family=Tajawal:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <!-- A-Frame 1.3 يتعاون مع AR.js بثبات أكثر من 1.4+ -->
   <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.7/aframe/build/aframe-ar.js"></script>
   <script type="module" src="https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js"></script>
   <style>
     :root {
-      --bg: #0c1410;
-      --card: #121b17;
-      --accent: #d4af37;
-      --accent-soft: rgba(212, 175, 55, 0.15);
-      --text: #e8eee9;
-      --muted: #9cb0a8;
+      --bg-deep: #0b0908;
+      --bg-panel: rgba(18, 14, 11, 0.88);
+      --line-subtle: rgba(245, 230, 200, 0.09);
+      --accent: #d1b15a;
+      --accent-dim: #8a7342;
+      --sand: #e8dcc4;
+      --text: #ece6dc;
+      --muted: #a3988a;
+      --green-muted: #3d6b52;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: "Tajawal", system-ui, sans-serif;
-      background: var(--bg);
+      background: var(--bg-deep);
       color: var(--text);
       overflow: hidden;
     }
@@ -36,98 +39,194 @@
       z-index: 20;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      padding: clamp(16px, 4vw, 32px);
-      background: radial-gradient(120% 80% at 50% 0%, #143028 0%, var(--bg) 55%);
+      align-items: stretch;
+      max-width: 32rem;
+      margin: 0 auto;
+      padding: clamp(1.25rem, 4vw, 2rem) clamp(1rem, 4vw, 1.5rem) 2rem;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
+      background:
+        linear-gradient(175deg, #14100c 0%, var(--bg-deep) 38%, #080706 100%),
+        radial-gradient(ellipse 90% 50% at 50% -8%, rgba(209, 177, 90, 0.07) 0%, transparent 55%);
+    }
+    #welcome::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    .welcome-inner { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 1.35rem; }
+    .welcome-eyebrow {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: none;
+      color: var(--green-muted);
+      margin-bottom: 0.5rem;
     }
     #welcome h1 {
-      font-size: clamp(1.35rem, 4vw, 1.85rem);
-      font-weight: 700;
-      margin: 0 0 8px;
-      color: var(--accent);
-      text-align: center;
-      line-height: 1.35;
+      font-family: "Reem Kufi", "Tajawal", sans-serif;
+      font-size: clamp(1.75rem, 6vw, 2.35rem);
+      font-weight: 600;
+      line-height: 1.15;
+      margin: 0 0 0.65rem;
+      color: var(--sand);
+      letter-spacing: -0.02em;
     }
-    #welcome .lead {
-      max-width: 520px;
-      text-align: center;
-      color: var(--muted);
+    .welcome-rule {
+      width: 4rem;
+      height: 3px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--accent-dim), var(--accent), var(--accent-dim));
+      margin: 0 auto 1rem 0;
+    }
+    .welcome-lead {
+      margin: 0;
       font-size: 1rem;
-      line-height: 1.75;
-      margin-bottom: 20px;
+      line-height: 1.8;
+      color: var(--muted);
+      max-width: 28rem;
+    }
+    .welcome-lead strong { color: var(--sand); font-weight: 600; }
+    .welcome-aside {
+      margin: 0.85rem 0 0;
+      padding: 0.65rem 0 0;
+      border-top: 1px dashed var(--line-subtle);
+      font-size: 0.88rem;
+      line-height: 1.7;
+      color: var(--muted);
+      font-style: normal;
+      max-width: 28rem;
     }
     #welcome-file-warn {
       display: none;
-      max-width: 540px;
-      width: 100%;
-      padding: 12px 14px;
-      margin-bottom: 14px;
-      background: rgba(160, 40, 40, 0.9);
-      color: #fff;
-      border-radius: 10px;
-      font-size: 0.9rem;
+      padding: 0.85rem 1rem;
+      margin: 0;
+      background: rgba(95, 28, 28, 0.92);
+      color: #fdeaea;
+      border-radius: 6px;
+      font-size: 0.88rem;
       line-height: 1.65;
-      text-align: center;
+      border: 1px solid rgba(255, 160, 160, 0.2);
     }
-    #welcome .card {
-      max-width: 560px;
-      width: 100%;
-      background: var(--card);
-      border: 1px solid #30363d;
-      border-radius: 14px;
-      padding: 18px 20px;
-      margin-bottom: 16px;
+    .welcome-block {
+      background: var(--bg-panel);
+      border: 1px solid var(--line-subtle);
+      border-radius: 4px;
+      padding: 1.15rem 1.2rem 1.25rem;
+      backdrop-filter: blur(8px);
     }
-    #welcome .card h2 {
-      margin: 0 0 10px;
-      font-size: 1.05rem;
-      color: var(--text);
+    .welcome-block h2 {
+      font-family: "Reem Kufi", "Tajawal", sans-serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 0 0 1rem;
+      color: var(--sand);
     }
-    #welcome .card ol {
-      margin: 0;
-      padding-right: 20px;
-      color: var(--muted);
-      line-height: 1.8;
-      font-size: 0.95rem;
-    }
-    #welcome .markers-row {
+    .step-rows {
       display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      justify-content: center;
-      margin-top: 10px;
-    }
-    #welcome .markers-row figure {
+      flex-direction: column;
+      gap: 0.85rem;
       margin: 0;
-      text-align: center;
-      font-size: 0.8rem;
+      padding: 0;
+      list-style: none;
+    }
+    .step-rows li {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.65rem 0.75rem;
+      align-items: start;
+      font-size: 0.92rem;
+      line-height: 1.65;
       color: var(--muted);
     }
-    #welcome .markers-row img {
-      width: 88px;
-      height: 88px;
-      object-fit: contain;
-      border-radius: 8px;
-      border: 1px solid #30363d;
-      background: #fff;
-    }
-    #btn-start {
-      margin-top: 8px;
-      padding: 14px 36px;
-      font-family: inherit;
-      font-size: 1.05rem;
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.6rem;
+      height: 1.6rem;
+      font-family: "Reem Kufi", sans-serif;
+      font-size: 0.72rem;
       font-weight: 700;
-      border: none;
-      border-radius: 999px;
-      cursor: pointer;
-      background: linear-gradient(135deg, #e8c547, #8f7024);
-      color: #0d1117;
-      box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);
+      color: var(--bg-deep);
+      background: var(--accent);
+      border-radius: 3px;
     }
-    #btn-start:active { transform: scale(0.98); }
+    .markers-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.65rem;
+      margin-top: 1.1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line-subtle);
+    }
+    @media (max-width: 380px) {
+      .markers-grid { grid-template-columns: 1fr; max-width: 12rem; margin-left: auto; margin-right: auto; }
+    }
+    .marker-tile {
+      text-align: center;
+    }
+    .marker-thumb {
+      margin: 0 auto 0.45rem;
+      width: 100%;
+      max-width: 5.5rem;
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #faf6ef;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 3px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+    .marker-thumb img {
+      width: 82%;
+      height: 82%;
+      object-fit: contain;
+    }
+    .marker-caption {
+      margin: 0;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      color: var(--muted);
+    }
+    .marker-caption em {
+      display: block;
+      font-style: normal;
+      font-size: 0.68rem;
+      color: var(--accent-dim);
+      margin-top: 0.15rem;
+    }
+    .btn-primary {
+      margin-top: 0.25rem;
+      width: 100%;
+      padding: 1rem 1.25rem;
+      font-family: "Tajawal", sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      color: #120e0a;
+      background: var(--accent);
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.2) inset, 0 6px 20px rgba(0, 0, 0, 0.35);
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+    .btn-primary:hover { background: #dfc065; }
+    .btn-primary:active { transform: translateY(1px); }
+    .welcome-micro {
+      margin: 0;
+      font-size: 0.78rem;
+      line-height: 1.55;
+      color: #6d6560;
+      text-align: center;
+    }
 
     /* ——— واجهة فوق الكاميرا ——— */
     #ar-ui {
@@ -184,9 +283,9 @@
       right: 0;
       bottom: 0;
       max-height: 42vh;
-      background: linear-gradient(180deg, transparent, rgba(13, 17, 23, 0.97) 12%);
+      background: linear-gradient(180deg, transparent, rgba(11, 9, 8, 0.96) 14%);
       padding: 16px 18px 22px;
-      border-top: 1px solid #30363d;
+      border-top: 1px solid var(--line-subtle);
       transform: translateY(100%);
       transition: transform 0.35s ease;
     }
@@ -278,15 +377,22 @@
     .panel-tool-btn:active { transform: scale(0.95); background: #2a2a2a; }
     .panel-tool-btn svg { width: 24px; height: 24px; display: block; }
 
-    #panel-help {
+    #panel-help,
+    .panel-help-box {
       margin-bottom: 10px;
       padding: 10px 12px;
       font-size: 0.82rem;
       line-height: 1.65;
       color: var(--muted);
-      background: rgba(255, 255, 255, 0.06);
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 3px;
+      border: 1px solid var(--line-subtle);
+    }
+    .panel-help-list {
+      margin: 8px 0 0;
+      padding-right: 18px;
+      line-height: 1.65;
+      font-size: 0.9em;
     }
     #panel-help.is-hidden { display: none; }
 
@@ -309,10 +415,10 @@
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      border-radius: 16px;
-      background: linear-gradient(180deg, #1e2420 0%, #121716 100%);
-      border: 1px solid rgba(212, 175, 55, 0.25);
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+      border-radius: 4px;
+      background: linear-gradient(180deg, #171310 0%, #0c0a09 100%);
+      border: 1px solid var(--line-subtle);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
     }
     .mv-sheet-head {
       display: flex;
@@ -326,7 +432,8 @@
       margin: 0;
       font-size: 1rem;
       font-weight: 700;
-      color: var(--accent);
+      font-family: "Reem Kufi", "Tajawal", sans-serif;
+      color: var(--sand);
     }
     #mv-close-sheet {
       font-family: inherit;
@@ -343,7 +450,7 @@
       width: 100%;
       height: min(52vh, 420px);
       min-height: 280px;
-      background: radial-gradient(circle at 50% 30%, #2a332e 0%, #0d1110 70%);
+      background: radial-gradient(circle at 50% 28%, #252018 0%, #0a0908 72%);
     }
     .mv-sheet-foot {
       padding: 10px 14px 14px;
@@ -360,20 +467,20 @@
       font-family: inherit;
       font-size: 1rem;
       font-weight: 700;
-      border: 1px solid #30363d;
-      border-radius: 10px;
+      border: 1px solid var(--line-subtle);
+      border-radius: 3px;
       cursor: pointer;
-      background: #21262d;
+      background: rgba(28, 24, 20, 0.95);
       color: var(--text);
     }
-    #btn-close:hover { background: #30363d; }
+    #btn-close:hover { background: rgba(45, 38, 32, 0.98); }
 
     #done-screen {
       display: none;
       position: fixed;
       inset: 0;
       z-index: 15;
-      background: rgba(13, 17, 23, 0.92);
+      background: linear-gradient(180deg, rgba(14, 11, 9, 0.97) 0%, rgba(8, 7, 6, 0.98) 100%);
       align-items: center;
       justify-content: center;
       flex-direction: column;
@@ -381,7 +488,33 @@
       text-align: center;
     }
     #done-screen.visible { display: flex; }
-    #done-screen p { max-width: 400px; line-height: 1.7; color: var(--muted); }
+    #done-title-done {
+      font-family: "Reem Kufi", "Tajawal", sans-serif;
+      font-size: 1.35rem;
+      color: var(--sand);
+      margin: 0 0 12px;
+    }
+    #done-screen .done-copy {
+      max-width: 22rem;
+      line-height: 1.75;
+      color: var(--muted);
+      margin: 0;
+      font-size: 0.95rem;
+    }
+    .btn-done {
+      margin-top: 1.5rem;
+      padding: 0.85rem 2rem;
+      font-family: "Tajawal", sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      border-radius: 3px;
+      border: none;
+      cursor: pointer;
+      background: var(--accent);
+      color: #120e0a;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    }
+    .btn-done:active { transform: translateY(1px); }
 
     a-scene { width: 100%; height: 100%; }
   </style>
@@ -389,35 +522,63 @@
 <body>
 
   <section id="welcome" aria-label="ترحيب">
-    <h1>متحف الواقع المعزّز للثقافة السعودية</h1>
-    <p id="welcome-file-warn"></p>
-    <p class="lead">
-      مرحبًا بك في جولة رقمية تربط بين التراث الصحراوي والضيافة والحرف العربية الأصيلة على أرض المملكة العربية السعودية. من خلال كاميرا جهازك وثلاث ماركرات، ستُكتشف <strong>خيمة عربية</strong> تعبّر عن الحياة البدوية وحِماية الموئل، ثم <strong>دلة سعودية</strong> رمزًا للكرم والقهوة العربية، ثم <strong>سيفًا عربيًا</strong> شاهدًا على الفتوة والصناعة الفنية للمعدن.
-      عند مسح كل ماركر في دوره، يظهر المجسم ثلاثي الأبعاد وشرح مختصر؛ و<strong>يبقى المجسم والنص ظاهرين بعد إزالة الماركر من أمام الكاميرا</strong> إلى أن تضغط «إغلاق» لتنتقل للقطعة التالية — كما رغبت.
-    </p>
-    <div class="card">
-      <h2>كيف تبدأ الزيارة؟</h2>
-      <ol>
-        <li>جهّز الماركرات الثلاثة بالترتيب: <strong>١ — Hiro (الخيمة)</strong>، <strong>٢ — Kanji (الدلة)</strong>، <strong>٣ — حرف A (السيف)</strong>. يمكن طباعتها أو عرضها على شاشة ثانية بحجم مناسب.</li>
-        <li>اضغط «ابدأ الزيارة» واسمح باستخدام الكاميرا — يُفضّل Chrome على الهاتف، والتصفح من <strong>localhost</strong> أو <strong>https</strong> لأن الواقع المعزز يحتاج اتصالًا آمنًا.</li>
-        <li>ابدأ بماركر <strong>Hiro</strong> فقط في الخطوة الأولى؛ بعد ظهور النموذج يمكنك إبعاد الماركر، والمجسم يبقى في مكانه مع الشرح حتى تضغط إغلاق.</li>
-      </ol>
-      <div class="markers-row">
-        <figure>
-          <img src="markers/hiro.png" alt="ماركر Hiro — الخيمة" />
-          <figcaption>١ — Hiro · خيمة</figcaption>
-        </figure>
-        <figure>
-          <img src="markers/kanji.png" alt="ماركر Kanji — الدلة" />
-          <figcaption>٢ — Kanji · دلة</figcaption>
-        </figure>
-        <figure>
-          <img src="markers/pattern-letterA.png" alt="ماركر A — السيف" />
-          <figcaption>٣ — A · سيف</figcaption>
-        </figure>
+    <div class="welcome-inner">
+      <header>
+        <p class="welcome-eyebrow">جولة رقمية · ثقافة سعودية</p>
+        <h1>أثر يُرى من الكاميرا</h1>
+        <div class="welcome-rule" aria-hidden="true"></div>
+        <p class="welcome-lead">
+          ثلاث وقفات: <strong>خيمة</strong>، ثم <strong>دلة</strong>، ثم <strong>سيف</strong>. تُشير الكاميرا إلى رموز مطبوعة فيثبت المجسم مع نص قصير؛ لا يزول إلا عندما تختار الانتقال للوقفة التالية.
+        </p>
+        <p class="welcome-aside">
+          الطريقة بسيطة عمدًا: نفس الماركرات المعروفة في AR (Hiro، Kanji، A)؛ إن لم تجرّبها من قبل، الصور بالأسفل ترشدك للطباعة أو العرض على شاشة ثانية.
+        </p>
+      </header>
+
+      <p id="welcome-file-warn"></p>
+
+      <div class="welcome-block">
+        <h2>قبل ما تفتح الكاميرا</h2>
+        <ul class="step-rows">
+          <li>
+            <span class="step-num">١</span>
+            <span>جهّز الرموز الثلاثة بالترتيب — خيمة، دلة، سيف — ورق أو شاشة، وإن أمكن تجنّب انعكاس قوي على الورق.</span>
+          </li>
+          <li>
+            <span class="step-num">٢</span>
+            <span>الموقع يعمل من رابط <strong>https</strong> (مثل GitHub) أو من جهازك بـ localhost؛ فتح الملف مباشرة من القرص يعطّل التحميل.</span>
+          </li>
+          <li>
+            <span class="step-num">٣</span>
+            <span>ابدأ دائمًا بخطوة «الخيمة»؛ بعد ظهور الشرح يمكن إزالة الورقة من الإطار ويبقى النموذج حتى زر «التالي».</span>
+          </li>
+        </ul>
+
+        <div class="markers-grid">
+          <div class="marker-tile">
+            <div class="marker-thumb">
+              <img src="markers/hiro.png" alt="" width="80" height="80" loading="lazy" />
+            </div>
+            <p class="marker-caption">الخيمة <em>Hiro</em></p>
+          </div>
+          <div class="marker-tile">
+            <div class="marker-thumb">
+              <img src="markers/kanji.png" alt="" width="80" height="80" loading="lazy" />
+            </div>
+            <p class="marker-caption">الدلة <em>Kanji</em></p>
+          </div>
+          <div class="marker-tile">
+            <div class="marker-thumb">
+              <img src="markers/pattern-letterA.png" alt="" width="80" height="80" loading="lazy" />
+            </div>
+            <p class="marker-caption">السيف <em>حرف A</em></p>
+          </div>
+        </div>
       </div>
+
+      <button type="button" id="btn-start" class="btn-primary">افتح الكاميرا</button>
+      <p class="welcome-micro">Chrome على أندرويد وSafari على آيفون أنسب للتجربة.</p>
     </div>
-    <button type="button" id="btn-start">ابدأ الزيارة</button>
   </section>
 
   <div id="ar-ui" hidden>
@@ -427,13 +588,12 @@
     <div id="panel" aria-live="polite">
       <h3 id="panel-title"></h3>
       <p id="panel-body"></p>
-      <div id="panel-help" class="is-hidden" aria-live="polite">
-        <strong>نصائح سريعة</strong>
-        <ul style="margin:8px 0 0;padding-right:18px;line-height:1.65;font-size:0.9em">
-          <li>المجسم الذي ظهر من الماركر <strong>يثبت</strong> في المشهد بعد إبعاده حتى تضغط «إغلاق والانتقال…».</li>
-          <li>«<strong>واقع معزز / AR</strong>» يفتح نفس الملف في عارض Google — ابحث عن «عرض في مساحتك» أو «View in your space» على الجوال.</li>
-          <li>«<strong>ملء الشاشة</strong>» توسع الصفحة لمشاهدة الكاميرا والشرح أوضح.</li>
-          <li>لأفضل نتيجة استخدم رابطًا بـ <strong>https</strong> (مثل GitHub Pages).</li>
+      <div id="panel-help" class="is-hidden panel-help-box" aria-live="polite">
+        <strong>نصائح</strong>
+        <ul class="panel-help-list">
+          <li>المجسم <strong>لا يُلغى</strong> بإزالة الورقة عن الكاميرا؛ يختفي عند ضغط «التالي» فقط.</li>
+          <li>أيقونة «واقع معزّز» تفتح العارض المعروف من Google على الجوال — ابحث عن «عرض في مساحتك».</li>
+          <li>«ملء الشاشة» مفيد لو الكاميرا صغيرة في نافذة المتصفّح.</li>
         </ul>
       </div>
       <div id="panel-tools" class="panel-tools is-hidden" aria-label="أدوات المجسم">
@@ -467,7 +627,7 @@
           <span class="panel-tool-caption" id="cap-help">مساعدة</span>
         </div>
       </div>
-      <button type="button" id="btn-close">إغلاق والانتقال للقطعة التالية</button>
+      <button type="button" id="btn-close">الانتقال للوقفة التالية</button>
     </div>
   </div>
 
@@ -488,14 +648,14 @@
         ar
         ar-modes="webxr scene-viewer quick-look"
       ></model-viewer>
-      <p class="mv-sheet-foot">على أندرويد قد يظهر زر «عرض في مساحتك»؛ على آيفون قد يفتح «Quick Look». استخدم نفس رابط الموقع عبر <strong>https</strong> (مثل GitHub Pages) لأفضل دعم.</p>
+      <p class="mv-sheet-foot">الزر يختلف بحسب الجهاز؛ الأهم أن الرابط يكون بـ <strong>https</strong>.</p>
     </div>
   </div>
 
-  <div id="done-screen" role="dialog" aria-labelledby="done-title">
-    <h2 id="done-title" style="color:var(--accent);margin-bottom:12px;">تشرّفت بزيارتك</h2>
-    <p>اكتملت جولة «متحف الواقع المعزّز للثقافة السعودية». أعد تحميل الصفحة إن رغبت بتكرار التجربة مع العائلة أو الطلاب.</p>
-    <button type="button" id="btn-reload" style="margin-top:20px;padding:12px 28px;font-family:inherit;font-weight:700;border-radius:999px;border:none;background:var(--accent);color:#0d1117;cursor:pointer;">إعادة البداية</button>
+  <div id="done-screen" role="dialog" aria-labelledby="done-title-done">
+    <h2 id="done-title-done">انتهت الوقفات الثلاث</h2>
+    <p class="done-copy">إن رغبت بإعادة الجولة من الصفحة الأولى، اضغط الزر أدناه.</p>
+    <button type="button" id="btn-reload" class="btn-done">من جديد</button>
   </div>
 
   <!-- الماركرات الثلاثة (محتوى التتبع فقط؛ العرض الثابت عبر الحامل #persistent-holder) -->
@@ -504,7 +664,7 @@
     vr-mode-ui="enabled: false"
     renderer="logarithmicDepthBuffer: true; colorManagement: true;"
     arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;"
-    loading-screen="dotsColor: white; backgroundColor: #0d1117"
+    loading-screen="dotsColor: #d1b15a; backgroundColor: #080706"
     device-orientation-permission-ui="enabled: false"
     id="ar-scene"
     style="position:fixed;inset:0;width:100%;height:100%;"
@@ -544,22 +704,22 @@
       var STEPS = [
         {
           markerIndex: 0,
-          title: "الخيمة العربية البدوية",
-          body: "تجسّد الخيمة في التراث السعودي والخليجي بيتًا متنقلًا يقي من حر الرمال وبرّ البادية، ولُحمت من شعر الجمال والغنم وحبال السدى. كان للفضاء داخل الخيمة وأمام بابها «المجرّد» معنًى ضيافي: الجلوس بالدائرة واستقبال الضيوف وفقًا لعَرف الكرم الصحراوي.",
+          title: "الخيمة",
+          body: "في البادية كانت الخيمة بيتًا يُحمل مع الناس: شعر وجلد يصدّان الشمس والريح، وخلف بابها يتجمّع المجلس. صورة بسيطة لكنها تحمل فكرة «المدخل»: الضيف قبل كل شيء.",
           scale: "0.5 0.5 0.5",
           modelSrc: "models/arabic_tent.glb"
         },
         {
           markerIndex: 1,
-          title: "الدلة السعودية وشرب القهوة العربية",
-          body: "الدلة رمز الضيافة في المملكة وفي المجتمع الخليجي؛ تُحضَّر فيها القهوة العربية المذاق المميز مع الهيل، وتُقدَّم بترتيب «الفنجال» من اليمين للضيف الكبير. شرب القهوة في المجلس ليس عادة يومية فقط، بل تعبير عن الترحيب والاحترام والوفاء بذوق الموروث الشفهي المسجل لدى اليونسكو.",
+          title: "الدلة",
+          body: "حين تُحمى الدلة على الجمر، تتغيّر رائحة المجلس. القهوة هنا ليست مشروبًا فقط؛ هي مقدّمة، وترتيب الفنجال، ووقت يتباطأ فيه الحديث.",
           scale: "0.2 0.2 0.2",
           modelSrc: "models/saudi_dallah.glb"
         },
         {
           markerIndex: 2,
-          title: "السيف العربي",
-          body: "السيف العربي قطعة فرسخ في التاريخ العربي قبل الإسلام وبعده: دلالة على الشرف والدفاع عن العرض، ومصنوع بتقنيات سبك وسنّ ونقش زخرفية تعكس مهارة الصناع المحليّين في شبه الجزيرة. في السياق السعودي اليوم يبقى رمزًا للكرامة وموروث المهرجانات والرياضات التقليدية.",
+          title: "السيف",
+          body: "في شبه الجزيرة ارتبط السيف طويلًا بالكرامة والذود عن الحلّة — واليوم يُعرَف كذاكرة حرفية: نقش وفلّ وزخارف تذكّر أن الصناعة هنا لم تكن عبثًا.",
           scale: "0.45 0.45 0.45",
           modelSrc: "models/arabic_sword.glb"
         }
@@ -601,18 +761,18 @@
         if (el) {
           el.style.display = "block";
           el.textContent =
-            "لن تُحمَّل مجسمات glb ولن تعمل الكاميرا إن فتحت الصفحة مباشرة من القرص. من مجلد المشروع شغّل: python -m http.server 8080 ثم افتح http://localhost:8080";
+            "فتح الصفحة من القرص مباشرة يمنع تحميل المجسمات. شغّل خادمًا محليًا (مثل: python -m http.server 8080) وافتح الرابط من المتصفّح.";
         }
       })();
 
       function setHint() {
         if (currentStep >= STEPS.length) return;
-        var labels = ["Hiro · الخيمة", "Kanji · الدلة", "حرف A · السيف"];
-        stepBadge.textContent = "المجسم " + (currentStep + 1) + " من " + STEPS.length;
+        var labels = ["الخيمة — Hiro", "الدلة — Kanji", "السيف — حرف A"];
+        stepBadge.textContent = "الوقفة " + (currentStep + 1) + " من " + STEPS.length;
         hintScan.textContent =
           lockedForStep
-            ? "يمكنك إبعاد الماركر — القطعة والشرح يبقون حتى تضغط إغلاق."
-            : "امسح ماركر «" + labels[currentStep] + "» لإظهار النموذج والشرح.";
+            ? "أبعد الورقة إن شئت — الشرح والمجسم يبقون حتى «التالي»."
+            : "وجّه الكاميرا إلى رمز «" + labels[currentStep] + "».";
       }
 
       function showPanel(step) {
